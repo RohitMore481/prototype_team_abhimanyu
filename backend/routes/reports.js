@@ -118,6 +118,7 @@ router.get('/worker/:id', auth, (req, res) => {
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1).toISOString();
 
   // 1. Daily Trend
   const dailyTrend = db.prepare(`
@@ -137,7 +138,30 @@ router.get('/worker/:id', auth, (req, res) => {
     ORDER BY week_num ASC
   `).all(targetId, monthAgo);
 
-  // 3. Collective
+  // 3. Monthly Trend (Last 6 Months)
+  const monthlyTrend = db.prepare(`
+    SELECT strftime('%Y-%m', completed_at) as month, COUNT(*) as count
+    FROM tasks
+    WHERE assigned_worker_id = ? AND status = 'completed' AND completed_at >= ?
+    GROUP BY month
+    ORDER BY month ASC
+  `).all(targetId, sixMonthsAgo);
+
+  // 4. Activity Logs (Last 10)
+  const activityLogs = db.prepare(`
+    SELECT 
+      l.action, 
+      l.timestamp, 
+      l.note,
+      t.title as task_title
+    FROM task_logs l
+    JOIN tasks t ON l.task_id = t.id
+    WHERE l.performed_by = ?
+    ORDER BY l.timestamp DESC
+    LIMIT 10
+  `).all(targetId);
+
+  // 5. Collective
   const collective = db.prepare(`
     SELECT 
       COUNT(*) as total_tasks,
@@ -148,7 +172,7 @@ router.get('/worker/:id', auth, (req, res) => {
     WHERE assigned_worker_id = ?
   `).get(targetId);
 
-  res.json({ dailyTrend, weeklyTrend, collective });
+  res.json({ dailyTrend, weeklyTrend, monthlyTrend, activityLogs, collective });
 });
 
 module.exports = router;
