@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top left, #e2e8f0 0%, #94a3b8 100%);
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+  color: #1e293b;
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/40 backdrop-blur-md border border-white/30 shadow-xl;
+  }
+  
+  .glass-sidebar {
+    @apply bg-white/60 backdrop-blur-xl border-r border-white/20;
+  }
+
+  .glass-button {
+    @apply transition-all duration-200 active:scale-95 shadow-lg flex items-center justify-center gap-2 font-bold py-3 rounded-2xl;
+  }
+}
