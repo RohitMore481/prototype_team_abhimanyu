@@ -3,42 +3,45 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
+import ChatAssistant from './ChatAssistant';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import {
   Factory, LayoutDashboard, Cpu, ClipboardList, Users, BarChart3,
-  Bell, LogOut, Menu, X, Wifi, WifiOff, ChevronRight, Sun, Moon
+  Bell, LogOut, Menu, X, Wifi, WifiOff, Sun, Moon, Languages
 } from 'lucide-react';
-
-const navItems = {
-  admin: [
-    { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/admin/tasks', label: 'All Tasks', icon: ClipboardList },
-    { path: '/admin/machines', label: 'Machines', icon: Cpu },
-    { path: '/admin/users', label: 'Users', icon: Users },
-    { path: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
-  ],
-  supervisor: [
-    { path: '/supervisor', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/supervisor/tasks', label: 'Manage Tasks', icon: ClipboardList },
-    { path: '/supervisor/machines', label: 'Machines', icon: Cpu },
-    { path: '/supervisor/analytics', label: 'Analytics', icon: BarChart3 },
-  ],
-  worker: [
-    { path: '/worker', label: 'My Tasks', icon: ClipboardList },
-  ],
-};
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const { connected } = useSocket();
   const { isDark, toggleTheme } = useTheme();
+  const { lang, setLang, t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  const navItems = {
+    admin: [
+      { path: '/admin', label: t('dashboard'), icon: LayoutDashboard },
+      { path: '/admin/tasks', label: t('all_tasks'), icon: ClipboardList },
+      { path: '/admin/machines', label: t('machines'), icon: Cpu },
+      { path: '/admin/users', label: t('users'), icon: Users },
+      { path: '/admin/analytics', label: t('analytics'), icon: BarChart3 },
+    ],
+    supervisor: [
+      { path: '/supervisor', label: t('dashboard'), icon: LayoutDashboard },
+      { path: '/supervisor/tasks', label: t('manage_tasks'), icon: ClipboardList },
+      { path: '/supervisor/machines', label: t('machines'), icon: Cpu },
+      { path: '/supervisor/analytics', label: t('analytics'), icon: BarChart3 },
+    ],
+    worker: [
+      { path: '/worker', label: t('my_tasks'), icon: ClipboardList },
+    ],
+  };
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -48,7 +51,7 @@ export default function Layout({ children }) {
       ]);
       setNotifications(nRes.data);
       setUnreadCount(cRes.data.count);
-    } catch {}
+    } catch { }
   }, []);
 
   useEffect(() => {
@@ -70,53 +73,43 @@ export default function Layout({ children }) {
   };
 
   const items = navItems[user?.role] || [];
-
-  const roleColor = {
-    admin: 'text-purple-400',
-    supervisor: 'text-blue-400',
-    worker: 'text-emerald-400',
-  }[user?.role] || 'text-slate-400';
-
   const roleBadge = {
-    admin: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-    supervisor: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    worker: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    admin: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20',
+    supervisor: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20',
+    worker: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20',
   }[user?.role] || '';
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-zinc-50 dark:bg-[#09090b]">
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform duration-300 theme-bg border-r theme-border 
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform duration-300 bg-white dark:bg-[#09090b] border-r border-zinc-200 dark:border-zinc-800 
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:inset-auto`}>
-        
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-700/50">
-          <div className="w-9 h-9 bg-blue-600/20 border border-blue-500/30 rounded-xl flex items-center justify-center">
-            <Factory size={18} className="text-blue-400" />
+
+        <div className="flex items-center gap-3 px-6 py-5 border-b border-zinc-200 dark:border-zinc-800">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-zinc-900 dark:bg-white text-zinc-50 dark:text-zinc-900 shadow-sm">
+            <Factory size={18} />
           </div>
           <div>
-            <p className="font-bold text-slate-100 text-sm">Shopfloor OS</p>
-            <p className="text-xs text-slate-500">Manufacturing Suite</p>
+            <p className="font-bold text-zinc-900 dark:text-white text-sm">Shopfloor OS</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Manufacturing Suite</p>
           </div>
         </div>
 
-        {/* User Info */}
-        <div className="px-4 py-3 border-b border-slate-700/50">
+        <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center font-bold text-sm text-slate-300">
+            <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center font-bold text-sm text-zinc-600 dark:text-zinc-300">
               {user?.name?.[0]?.toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-200 truncate">{user?.name}</p>
-              <span className={`inline-block text-xs px-2 py-0.5 rounded border font-medium ${roleBadge}`}>
+              <p className="text-sm font-semibold text-zinc-900 dark:text-white truncate">{user?.name}</p>
+              <span className={`inline-block text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border mt-0.5 ${roleBadge}`}>
                 {user?.role}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Nav Items */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {items.map(({ path, label, icon: Icon }) => (
             <Link
               key={path}
@@ -126,85 +119,96 @@ export default function Layout({ children }) {
             >
               <Icon size={18} />
               <span className="flex-1">{label}</span>
-              {location.pathname === path && <ChevronRight size={14} className="text-blue-400" />}
             </Link>
           ))}
         </nav>
 
-        {/* Connection Status + Logout */}
-        <div className="p-3 border-t border-slate-700/50 space-y-1">
-          <div className="flex items-center gap-2 px-3 py-1.5">
+        <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
+          <div className="flex items-center gap-2 px-3 pb-2 text-xs font-medium">
             {connected
-              ? <><Wifi size={14} className="text-emerald-400" /><span className="text-xs text-emerald-400">Live Connected</span></>
-              : <><WifiOff size={14} className="text-red-400" /><span className="text-xs text-red-400">Disconnected</span></>
+              ? <><Wifi size={14} className="text-emerald-500" /><span className="text-emerald-600 dark:text-emerald-500">{t('live_connected')}</span></>
+              : <><WifiOff size={14} className="text-red-500" /><span className="text-red-600 dark:text-red-500">{t('disconnected')}</span></>
             }
           </div>
-          <button onClick={handleLogout} className="sidebar-item w-full text-red-400 hover:text-red-300 hover:bg-red-500/10">
+          <button onClick={handleLogout} className="sidebar-item w-full text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/30 font-medium">
             <LogOut size={18} />
-            Sign Out
+            {t('sign_out')}
           </button>
         </div>
       </aside>
 
       {/* Overlay */}
-      {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      {sidebarOpen && <div className="fixed inset-0 z-40 bg-zinc-900/50 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
-      {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Topbar */}
-        <header className="backdrop-blur border-b theme-border px-4 py-3 flex items-center justify-between shrink-0" style={{ backgroundColor: 'var(--bg2)' }}>
-          <button className="lg:hidden p-2 text-slate-400 hover:text-slate-100" onClick={() => setSidebarOpen(true)}>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        <header className="sticky top-0 z-30 bg-white/80 dark:bg-[#09090b]/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 px-6 py-3 flex items-center justify-between shrink-0">
+          <button className="lg:hidden p-2 -ml-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100" onClick={() => setSidebarOpen(true)}>
             <Menu size={20} />
           </button>
+
           <div className="hidden lg:block">
-            <p className="text-sm font-semibold text-slate-300">
-              {items.find(i => i.path === location.pathname)?.label || 'Dashboard'}
-            </p>
+            <h1 className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-white">
+              {items.find(i => i.path === location.pathname)?.label || t('dashboard')}
+            </h1>
           </div>
-          <div className="flex items-center gap-2 ml-auto">
-            {/* Theme Toggle */}
+
+          <div className="flex items-center gap-3 ml-auto">
+            {/* Language Toggle */}
+            <div className="relative group">
+              <button
+                className="flex items-center gap-2 p-2 rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
+                title="Change Language"
+              >
+                <Languages size={18} />
+                <span className="text-xs font-bold uppercase tracking-widest">{lang}</span>
+              </button>
+            </div>
+
             <button
-              id="layout-theme-toggle"
               onClick={toggleTheme}
-              className="p-2 rounded-xl transition-all hover:scale-110 active:scale-95"
+              className="p-2 rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors"
               title={isDark ? 'Light Mode' : 'Dark Mode'}
             >
-              {isDark
-                ? <Sun size={18} className="text-amber-400" />
-                : <Moon size={18} className="text-blue-500" />
-              }
+              {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            {/* Notification Bell */}
-            <div className="relative">
+
+            {/* Notifications */}
+            <div className="relative flex items-center">
               <button
-                id="notif-bell"
                 onClick={() => { setNotifOpen(p => !p); if (!notifOpen) fetchNotifications(); }}
-                className="p-2 text-slate-400 hover:text-slate-100 relative"
+                className="p-2 rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 relative"
               >
-                <Bell size={20} />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] font-bold flex items-center justify-center text-white animate-pulse">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
+                <Bell size={18} />
+                {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
               </button>
+
               {notifOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 z-50 shadow-2xl animate-slide-in glass-card">
-                  <div className="flex items-center justify-between mb-3">
+                <div className="absolute right-0 top-full mt-2 w-80 z-50 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 animate-slide-in overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
                     <p className="font-semibold text-sm">Notifications</p>
-                    <div className="flex gap-2">
-                      <button onClick={markAllRead} className="text-xs text-blue-400 hover:text-blue-300">Mark all read</button>
-                      <button onClick={() => setNotifOpen(false)}><X size={14} className="text-slate-400" /></button>
+                    <div className="flex items-center gap-3">
+                      <button onClick={markAllRead} className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">Mark read</button>
+                      <button onClick={() => setNotifOpen(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"><X size={14} /></button>
                     </div>
                   </div>
-                  <div className="space-y-2 max-h-72 overflow-y-auto">
-                    {notifications.length === 0 && <p className="text-slate-500 text-sm text-center py-4">No notifications</p>}
-                    {notifications.map(n => (
-                      <div key={n.id} className={`p-2.5 rounded-lg text-xs ${n.is_read ? 'bg-slate-700/30' : 'bg-slate-700 border border-slate-600'}`}>
-                        <p className="text-slate-300">{n.message}</p>
-                        <p className="text-slate-500 mt-1">{new Date(n.created_at).toLocaleString()}</p>
+                  <div className="max-h-72 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="py-8 text-center text-zinc-500 flex flex-col items-center gap-2">
+                        <Bell size={24} className="text-zinc-300 dark:text-zinc-700" />
+                        <p className="text-sm">You're all caught up!</p>
                       </div>
-                    ))}
+                    ) : (
+                      <div className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
+                        {notifications.map(n => (
+                          <div key={n.id} className={`p-4 text-sm transition-colors ${n.is_read ? 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400' : 'bg-blue-50/50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100'}`}>
+                            <p className={n.is_read ? 'font-normal' : 'font-medium'}>{n.message}</p>
+                            <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1.5 font-medium">{new Date(n.created_at).toLocaleString()}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -212,11 +216,15 @@ export default function Layout({ children }) {
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6 theme-bg">
-          {children}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto w-full p-4 lg:p-8">
+            {children}
+          </div>
         </main>
       </div>
+
+      {/* Global Chatbot */}
+      <ChatAssistant />
     </div>
   );
 }

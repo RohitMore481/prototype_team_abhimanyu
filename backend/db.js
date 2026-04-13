@@ -17,6 +17,7 @@ db.exec(`
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL CHECK(role IN ('admin','supervisor','worker')),
     status TEXT NOT NULL DEFAULT 'idle' CHECK(status IN ('idle','busy','paused')),
+    is_on_break INTEGER DEFAULT 0,
     last_idle_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -51,6 +52,14 @@ db.exec(`
   -- Note: We recreate or alter if needed, but here we'll just make sure the SQL reflects it for new setups
   -- To fix existing, we'll run a migration script.
   
+  CREATE TABLE IF NOT EXISTS break_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    start_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    end_time DATETIME,
+    date DATE DEFAULT (DATE('now', 'localtime')),
+    paused_tasks TEXT
+  );
 
   CREATE TABLE IF NOT EXISTS task_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

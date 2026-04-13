@@ -3,7 +3,7 @@ import api from '../utils/api';
 import { Loader2, TrendingDown, Cpu, Users } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, RadialBarChart, RadialBar, Legend
+  ResponsiveContainer, Legend
 } from 'recharts';
 
 export default function AnalyticsPage() {
@@ -16,13 +16,13 @@ export default function AnalyticsPage() {
       const [sRes, dRes] = await Promise.all([api.get('/analytics/summary'), api.get('/analytics/downtime')]);
       setData(sRes.data);
       setDowntime(dRes.data);
-    } catch {}
+    } catch { }
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  if (loading) return <div className="flex justify-center py-16"><Loader2 size={28} className="text-blue-400 animate-spin" /></div>;
+  if (loading) return <div className="flex justify-center py-16"><Loader2 size={28} className="text-blue-500 animate-spin" /></div>;
 
   const workerChartData = (data?.workerPerformance || []).map(w => ({
     name: w.name.split(' ')[0],
@@ -47,21 +47,21 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6 animate-slide-in">
       <div>
-        <h1 className="text-xl font-bold text-slate-100">Analytics & Reports</h1>
-        <p className="text-sm text-slate-400">Operational efficiency insights</p>
+        <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-50 tracking-tight">Analytics & Reports</h1>
+        <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mt-1">Operational efficiency insights</p>
       </div>
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Workers', value: data?.workerCount || 0, color: 'text-blue-400' },
-          { label: 'Delayed Tasks', value: data?.delayedTasks || 0, color: 'text-red-400' },
-          { label: 'Completed Today', value: data?.completedToday || 0, color: 'text-emerald-400' },
-          { label: 'Avg Efficiency', value: `${workerChartData.length ? Math.round(workerChartData.reduce((a, b) => a + b.efficiency, 0) / workerChartData.length) : 0}%`, color: 'text-purple-400' },
+          { label: 'Total Workers', value: data?.workerCount || 0, color: 'text-blue-600 dark:text-blue-400' },
+          { label: 'Delayed Tasks', value: data?.delayedTasks || 0, color: 'text-red-600 dark:text-red-400' },
+          { label: 'Completed Today', value: data?.completedToday || 0, color: 'text-emerald-600 dark:text-emerald-400' },
+          { label: 'Avg Efficiency', value: `${workerChartData.length ? Math.round(workerChartData.reduce((a, b) => a + b.efficiency, 0) / workerChartData.length) : 0}%`, color: 'text-purple-600 dark:text-purple-400' },
         ].map(({ label, value, color }) => (
-          <div key={label} className="card text-center">
-            <p className={`text-3xl font-bold ${color}`}>{value}</p>
-            <p className="text-xs text-slate-400 mt-1">{label}</p>
+          <div key={label} className="card text-center p-6">
+            <p className={`text-4xl font-black tracking-tight ${color}`}>{value}</p>
+            <p className="text-[11px] uppercase tracking-widest font-bold text-zinc-500 mt-2">{label}</p>
           </div>
         ))}
       </div>
@@ -69,51 +69,57 @@ export default function AnalyticsPage() {
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Worker Performance */}
         <div className="card">
-          <h3 className="font-semibold mb-4 flex items-center gap-2"><Users size={16} className="text-blue-400" /> Worker Efficiency</h3>
+          <h3 className="font-bold mb-6 flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
+            <Users size={16} className="text-blue-500" /> Worker Efficiency
+          </h3>
           {workerChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={workerChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f1f5f9' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip cursor={{ fill: 'var(--border)', opacity: 0.2 }} contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)' }} />
                 <Bar dataKey="completed" fill="#10b981" radius={[4, 4, 0, 0]} name="Completed" />
                 <Bar dataKey="delayed" fill="#ef4444" radius={[4, 4, 0, 0]} name="Delayed" />
-                <Legend />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
               </BarChart>
             </ResponsiveContainer>
-          ) : <p className="text-slate-500 text-center py-8">No data yet</p>}
+          ) : <p className="text-zinc-500 text-center py-8">No data yet</p>}
         </div>
 
         {/* Machine Utilization */}
         <div className="card">
-          <h3 className="font-semibold mb-4 flex items-center gap-2"><Cpu size={16} className="text-blue-400" /> Machine Utilization</h3>
+          <h3 className="font-bold mb-6 flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
+            <Cpu size={16} className="text-blue-500" /> Machine Utilization
+          </h3>
           {machineChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={machineChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f1f5f9' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip cursor={{ fill: 'var(--border)', opacity: 0.2 }} contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)' }} />
                 <Bar dataKey="tasks" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Total Tasks" />
                 <Bar dataKey="completed" fill="#10b981" radius={[4, 4, 0, 0]} name="Completed" />
-                <Legend />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
               </BarChart>
             </ResponsiveContainer>
-          ) : <p className="text-slate-500 text-center py-8">No data yet</p>}
+          ) : <p className="text-zinc-500 text-center py-8">No data yet</p>}
         </div>
       </div>
 
       {/* Pause Reasons Breakdown */}
       {pauseData.length > 0 && (
         <div className="card">
-          <h3 className="font-semibold mb-4 flex items-center gap-2"><TrendingDown size={16} className="text-amber-400" /> Downtime Cause Analysis</h3>
+          <h3 className="font-bold mb-6 flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
+            <TrendingDown size={16} className="text-amber-500" /> Downtime Cause Analysis
+          </h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={pauseData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
-              <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-              <YAxis type="category" dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} width={160} />
-              <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f1f5f9' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+              <XAxis type="number" tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" tick={{ fill: 'var(--muted)', fontSize: 11 }} width={160} axisLine={false} tickLine={false} />
+              <Tooltip cursor={{ fill: 'var(--border)', opacity: 0.2 }} contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)' }} />
               <Bar dataKey="count" fill="#f59e0b" radius={[0, 4, 4, 0]} name="Occurrences" />
             </BarChart>
           </ResponsiveContainer>
@@ -122,23 +128,25 @@ export default function AnalyticsPage() {
 
       {/* Downtime by Machine */}
       {(downtime?.downtimeByMachine?.length > 0) && (
-        <div className="card">
-          <h3 className="font-semibold mb-4">Downtime Log by Machine</h3>
+        <div className="card overflow-hidden !p-0">
+          <div className="p-6 border-b border-zinc-200 dark:border-zinc-800">
+            <h3 className="font-bold text-zinc-900 dark:text-zinc-100">Downtime Log by Machine</h3>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-slate-400 uppercase tracking-wider border-b border-slate-700">
-                  <th className="pb-2 pr-4">Machine</th>
-                  <th className="pb-2 pr-4">Reason</th>
-                  <th className="pb-2">Occurrences</th>
+              <thead className="bg-zinc-50 dark:bg-zinc-900/50">
+                <tr className="text-left text-[11px] text-zinc-500 uppercase tracking-wider font-bold">
+                  <th className="px-6 py-4">Machine</th>
+                  <th className="px-6 py-4">Reason</th>
+                  <th className="px-6 py-4">Occurrences</th>
                 </tr>
               </thead>
               <tbody>
                 {downtime.downtimeByMachine.map((r, i) => (
                   <tr key={i} className="table-row">
-                    <td className="py-2.5 pr-4 text-slate-200 font-medium">{r.machine_name}</td>
-                    <td className="py-2.5 pr-4 text-slate-400">{r.pause_reason}</td>
-                    <td className="py-2.5 text-amber-400 font-semibold">{r.pause_count}</td>
+                    <td className="px-6 py-4 text-zinc-900 dark:text-zinc-100 font-medium whitespace-nowrap">{r.machine_name}</td>
+                    <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 max-w-sm truncate">{r.pause_reason}</td>
+                    <td className="px-6 py-4 text-amber-600 dark:text-amber-500 font-bold">{r.pause_count}</td>
                   </tr>
                 ))}
               </tbody>

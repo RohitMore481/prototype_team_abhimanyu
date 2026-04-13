@@ -51,8 +51,8 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={user ? (
         user.role === 'admin' ? <Navigate to="/admin" /> :
-        user.role === 'supervisor' ? <Navigate to="/supervisor" /> :
-        <Navigate to="/worker" />
+          user.role === 'supervisor' ? <Navigate to="/supervisor" /> :
+            <Navigate to="/worker" />
       ) : <Login />} />
 
       <Route path="/register" element={user ? <Navigate to="/login" /> : <Register />} />
@@ -79,17 +79,21 @@ function AppRoutes() {
   );
 }
 
+import { LanguageProvider } from './context/LanguageContext';
+
 export default function App() {
   return (
     <BrowserRouter>
-      <ThemeProvider>
-        <AuthProvider>
-          <SocketProvider>
-            <AppRoutes />
-            <ToasterWithTheme />
-          </SocketProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <LanguageProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <SocketProvider>
+              <AppRoutes />
+              <ToasterWithTheme />
+            </SocketProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </LanguageProvider>
     </BrowserRouter>
   );
 }

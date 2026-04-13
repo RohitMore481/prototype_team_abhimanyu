@@ -7,13 +7,13 @@ const auth = require('../middleware/auth');
 // GET all users (Admin only)
 router.get('/', auth, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
-  const users = db.prepare('SELECT id, name, email, role, status, created_at FROM users').all();
+  const users = db.prepare('SELECT id, name, email, role, status, is_on_break, created_at FROM users').all();
   res.json(users);
 });
 
 // GET workers only
 router.get('/workers', auth, (req, res) => {
-  const workers = db.prepare("SELECT id, name, email, status FROM users WHERE role = 'worker'").all();
+  const workers = db.prepare("SELECT id, name, email, status, is_on_break FROM users WHERE role = 'worker'").all();
   res.json(workers);
 });
 
@@ -53,7 +53,7 @@ router.delete('/:id', auth, (req, res) => {
     const autoAssign = req.app.get('autoAssign');
     if (autoAssign) autoAssign.attemptAutoAssign(io);
   }
-  
+
   res.json({ success: true });
 });
 

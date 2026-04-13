@@ -69,7 +69,7 @@ router.get('/monthly', auth, (req, res) => {
   };
 
   const currentStats = getStats(monthAgo, now.toISOString());
-  
+
   // Machine Utilization (Simplified: Tasks per machine)
   const machineUtilization = db.prepare(`
     SELECT m.name, COUNT(t.id) as task_count, SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) as completed
@@ -95,6 +95,7 @@ router.get('/workers', auth, (req, res) => {
       u.id,
       u.name as worker_name,
       u.status,
+      u.is_on_break,
       COUNT(t.id) as total_tasks,
       SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) as completed,
       SUM(CASE WHEN t.status = 'delayed' THEN 1 ELSE 0 END) as delayed,
@@ -172,7 +173,16 @@ router.get('/worker/:id', auth, (req, res) => {
     WHERE assigned_worker_id = ?
   `).get(targetId);
 
-  res.json({ dailyTrend, weeklyTrend, monthlyTrend, activityLogs, collective });
+  // 6. Break Logs
+  const breakLogs = db.prepare(`
+    SELECT start_time, end_time, date
+    FROM break_logs
+    WHERE user_id = ?
+    ORDER BY start_time DESC
+    LIMIT 10
+  `).all(targetId);
+
+  res.json({ dailyTrend, weeklyTrend, monthlyTrend, activityLogs, breakLogs, collective });
 });
 
 module.exports = router;

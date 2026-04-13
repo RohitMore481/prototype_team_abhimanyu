@@ -6,7 +6,7 @@ const auth = require('../middleware/auth');
 function createNotification(userId, message, type = 'info') {
   try {
     db.prepare('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)').run(userId, message, type);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function emitUpdate(req, eventName, data) {
@@ -51,6 +51,49 @@ router.get('/', auth, (req, res) => {
   res.json(tasks);
 });
 
+// GET all unassigned tasks (Task Pool)
+router.get('/pool', auth, (req, res) => {
+  const tasks = db.prepare(`
+    SELECT t.*, m.name as machine_name, s.name as supervisor_name
+    FROM tasks t
+    LEFT JOIN machines m ON t.machine_id = m.id
+    LEFT JOIN users s ON t.created_by = s.id
+    WHERE t.assigned_worker_id IS NULL AND t.status = 'not_started'
+    ORDER BY CASE t.priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, t.created_at ASC
+  `).all();
+  res.json(tasks);
+});
+
+// claim task route
+router.put('/:id/claim', auth, (req, res) => {
+  if (req.user.role !== 'worker') return res.status(403).json({ error: 'Only workers can claim tasks' });
+  const taskId = req.params.id;
+
+  // 1. Check if user is on break
+  const user = db.prepare('SELECT is_on_break FROM users WHERE id = ?').get(req.user.id);
+  if (user && user.is_on_break === 1) {
+    return res.status(400).json({ error: 'Cannot accept new tasks while on break. Please end your break first.' });
+  }
+
+  // 2. Check if user already has an active task
+  const activeTask = db.prepare("SELECT id FROM tasks WHERE assigned_worker_id = ? AND status = 'in_progress'").get(req.user.id);
+  if (activeTask) {
+    return res.status(400).json({ error: 'You are already working on another task. Please pause or complete it before accepting a new one.' });
+  }
+
+  const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+  if (task.assigned_worker_id) return res.status(400).json({ error: 'Task already assigned' });
+
+  db.prepare('UPDATE tasks SET assigned_worker_id = ? WHERE id = ?').run(req.user.id, taskId);
+  db.prepare('INSERT INTO task_logs (task_id, action, note, performed_by) VALUES (?, ?, ?, ?)').run(taskId, 'assigned', 'Worker claimed task from pool', req.user.id);
+
+  const updatedTask = db.prepare(`SELECT t.*, u.name as worker_name, m.name as machine_name FROM tasks t LEFT JOIN users u ON t.assigned_worker_id = u.id LEFT JOIN machines m ON t.machine_id = m.id WHERE t.id = ?`).get(taskId);
+
+  emitUpdate(req, 'task:updated', updatedTask);
+  res.json(updatedTask);
+});
+
 // GET single task
 router.get('/:id', auth, (req, res) => {
   const task = db.prepare(`
@@ -70,23 +113,18 @@ router.post('/', auth, (req, res) => {
   const { title, description, machine_id, assigned_worker_id, priority, expected_minutes } = req.body;
   if (!title) return res.status(400).json({ error: 'Title required.' });
 
+  // Enforce pool-based workflow: All new tasks start unassigned
   const result = db.prepare(`
     INSERT INTO tasks (title, description, machine_id, assigned_worker_id, created_by, priority, expected_minutes, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'not_started')
-  `).run(title, description || '', machine_id || null, assigned_worker_id || null, req.user.id, priority || 'medium', expected_minutes || 30);
+    VALUES (?, ?, ?, NULL, ?, ?, ?, 'not_started')
+  `).run(title, description || '', machine_id || null, req.user.id, priority || 'medium', expected_minutes || 30);
 
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(result.lastInsertRowid);
 
-  db.prepare('INSERT INTO task_logs (task_id, action, performed_by) VALUES (?, ?, ?)').run(task.id, 'assigned', req.user.id);
+  db.prepare('INSERT INTO task_logs (task_id, action, note, performed_by) VALUES (?, ?, ?, ?)').run(task.id, 'assigned', 'Task added to community pool', req.user.id);
 
   const io = req.app.get('io');
-  if (assigned_worker_id) {
-    notifyAndEmit(req, [assigned_worker_id], `New task assigned: "${title}"`, 'info', 'task:updated', task);
-  } else {
-    const autoAssign = req.app.get('autoAssign');
-    if (autoAssign) autoAssign.attemptAutoAssign(io);
-    emitUpdate(req, 'task:updated', task);
-  }
+  emitUpdate(req, 'task:updated', task);
 
   res.json(task);
 });
@@ -98,8 +136,15 @@ router.put('/:id', auth, (req, res) => {
   if (!task) return res.status(404).json({ error: 'Task not found' });
 
   // Workers can only update their own tasks
-  if (req.user.role === 'worker' && task.assigned_worker_id !== req.user.id) {
-    return res.status(403).json({ error: 'Not your task' });
+  if (req.user.role === 'worker') {
+    if (task.assigned_worker_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not your task' });
+    }
+    // Block action if on break
+    const user = db.prepare('SELECT is_on_break FROM users WHERE id = ?').get(req.user.id);
+    if (user.is_on_break === 1 && (action === 'start' || action === 'resume')) {
+      return res.status(400).json({ error: 'Cannot start or resume tasks while on break. Please end your break first.' });
+    }
   }
 
   const { action, pause_reason, note, title, machine_id, assigned_worker_id, priority, expected_minutes, status_override } = req.body;
@@ -166,7 +211,7 @@ router.put('/:id', auth, (req, res) => {
             db.prepare("UPDATE machines SET status = ?, idle_since = ? WHERE id = ?").run(nextStatus, nextStatus === 'idle' ? now : null, task.machine_id);
             const machine = db.prepare('SELECT * FROM machines WHERE id = ?').get(task.machine_id);
             emitUpdate(req, 'machine:status', machine);
-            
+
             // Notify next worker
             if (nextTask && nextTask.assigned_worker_id) {
               const msg = `🟢 Machine "${machine.name}" is now free! You can start your task: "${nextTask.title}".`;
@@ -253,13 +298,19 @@ router.put('/:id', auth, (req, res) => {
 // DELETE task (Admin/Supervisor)
 router.delete('/:id', auth, (req, res) => {
   if (req.user.role === 'worker') return res.status(403).json({ error: 'Forbidden' });
-  
+
   const taskId = parseInt(req.params.id);
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
   if (!task) return res.status(404).json({ error: 'Task not found' });
 
   const io = req.app.get('io');
   const now = new Date().toISOString();
+
+  // Notify worker if task was assigned
+  if (task.assigned_worker_id) {
+    const msg = `⚠️ Task "${task.title}" has been deleted by an administrator.`;
+    notifyAndEmit(req, [task.assigned_worker_id], msg, 'warning', 'notification:new', { message: msg, type: 'warning' });
+  }
 
   // 1. Delete associated logs and the task itself
   db.prepare('DELETE FROM task_logs WHERE task_id = ?').run(taskId);
@@ -269,14 +320,14 @@ router.delete('/:id', auth, (req, res) => {
   // If the task was occupying a machine, check if it should now be idle or re-queued
   if (task.machine_id) {
     const activeOnMachine = db.prepare("SELECT COUNT(*) as c FROM tasks WHERE machine_id = ? AND status = 'in_progress'").get(task.machine_id);
-    
+
     if (activeOnMachine.c === 0) {
       // Machine is no longer "Running". Check for next pending task.
       const nextTask = db.prepare("SELECT * FROM tasks WHERE machine_id = ? AND status = 'not_started' ORDER BY priority DESC, created_at ASC LIMIT 1").get(task.machine_id);
-      
+
       const newMachineStatus = nextTask ? 'occupied' : 'idle';
       db.prepare("UPDATE machines SET status = ?, idle_since = ? WHERE id = ?").run(newMachineStatus, newMachineStatus === 'idle' ? now : null, task.machine_id);
-      
+
       const updatedMachine = db.prepare('SELECT * FROM machines WHERE id = ?').get(task.machine_id);
       emitUpdate(req, 'machine:status', updatedMachine);
 
@@ -291,7 +342,7 @@ router.delete('/:id', auth, (req, res) => {
   // 3. Worker Status Recalculation
   if (task.assigned_worker_id) {
     const workerPendingTasks = db.prepare("SELECT COUNT(*) as c FROM tasks WHERE assigned_worker_id = ? AND status IN ('in_progress', 'not_started', 'paused')").get(task.assigned_worker_id);
-    
+
     if (workerPendingTasks.c === 0) {
       // Worker has no more work, set to idle
       db.prepare("UPDATE users SET status = 'idle', last_idle_at = CURRENT_TIMESTAMP WHERE id = ?").run(task.assigned_worker_id);
