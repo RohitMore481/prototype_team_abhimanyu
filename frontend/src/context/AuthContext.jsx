@@ -48,8 +48,14 @@ export function AuthProvider({ children }) {
     delete api.defaults.headers.common['Authorization'];
   };
 
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    const base = api.defaults.baseURL.replace('/api', '');
+    return `${base}${path}`;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, setUser, token, login, logout, loading, getImageUrl }}>
       {children}
     </AuthContext.Provider>
   );

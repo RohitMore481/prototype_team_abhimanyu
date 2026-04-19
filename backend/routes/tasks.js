@@ -30,7 +30,7 @@ router.get('/', auth, (req, res) => {
   let tasks;
   if (req.user.role === 'worker') {
     tasks = db.prepare(`
-      SELECT t.*, u.name as worker_name, u.status as worker_status, m.name as machine_name, m.status as machine_status, s.name as supervisor_name
+      SELECT t.*, u.name as worker_name, u.status as worker_status, u.profile_picture as worker_picture, m.name as machine_name, m.status as machine_status, s.name as supervisor_name
       FROM tasks t
       LEFT JOIN users u ON t.assigned_worker_id = u.id
       LEFT JOIN machines m ON t.machine_id = m.id
@@ -40,7 +40,7 @@ router.get('/', auth, (req, res) => {
     `).all(req.user.id);
   } else {
     tasks = db.prepare(`
-      SELECT t.*, u.name as worker_name, u.status as worker_status, m.name as machine_name, m.status as machine_status, s.name as supervisor_name
+      SELECT t.*, u.name as worker_name, u.status as worker_status, u.profile_picture as worker_picture, m.name as machine_name, m.status as machine_status, s.name as supervisor_name
       FROM tasks t
       LEFT JOIN users u ON t.assigned_worker_id = u.id
       LEFT JOIN machines m ON t.machine_id = m.id
@@ -195,7 +195,12 @@ router.put('/:id', auth, (req, res) => {
           }
         }
         const deadline = new Date(Date.now() + (task.expected_minutes * 60 * 1000)).toISOString();
-        updateFields = { status: 'in_progress', started_at: task.started_at || now, deadline_at: deadline };
+        updateFields = {
+          status: 'in_progress',
+          started_at: task.started_at || now,
+          deadline_at: deadline,
+          last_action_at: now
+        };
         logAction = task.status === 'paused' ? 'resumed' : 'started';
         // Update worker to busy
         if (task.assigned_worker_id) {
@@ -211,10 +216,12 @@ router.put('/:id', auth, (req, res) => {
         break;
 
       case 'pause':
-        if (task.status !== 'in_progress') {
-          return res.status(400).json({ error: 'Task is not in progress.' });
-        }
-        updateFields = { status: 'paused' };
+        const elapsedSinceLastStart = task.last_action_at ? Math.floor((new Date() - new Date(task.last_action_at)) / 1000) : 0;
+        updateFields = {
+          status: 'paused',
+          total_elapsed_seconds: (task.total_elapsed_seconds || 0) + elapsedSinceLastStart,
+          last_action_at: null
+        };
         logAction = 'paused';
         // Update worker to paused
         if (task.assigned_worker_id) {
@@ -243,7 +250,13 @@ router.put('/:id', auth, (req, res) => {
 
       case 'complete':
         if (task.status === 'completed') return res.status(400).json({ error: 'Already completed.' });
-        updateFields = { status: 'completed', completed_at: now };
+        const elapsedSinceLastStartComp = task.last_action_at ? Math.floor((new Date() - new Date(task.last_action_at)) / 1000) : 0;
+        updateFields = {
+          status: 'completed',
+          completed_at: now,
+          total_elapsed_seconds: (task.total_elapsed_seconds || 0) + elapsedSinceLastStartComp,
+          last_action_at: null
+        };
         logAction = 'completed';
         // Update worker to idle
         if (task.assigned_worker_id) {
@@ -304,7 +317,7 @@ router.put('/:id', auth, (req, res) => {
   }
 
   const updatedTask = db.prepare(`
-    SELECT t.*, u.name as worker_name, m.name as machine_name, m.status as machine_status
+    SELECT t.*, u.name as worker_name, u.profile_picture as worker_picture, m.name as machine_name, m.status as machine_status
     FROM tasks t
     LEFT JOIN users u ON t.assigned_worker_id = u.id
     LEFT JOIN machines m ON t.machine_id = m.id

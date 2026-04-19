@@ -42,12 +42,12 @@ router.post('/login', (req, res) => {
   if (!valid) return res.status(401).json({ error: 'Invalid credentials.' });
 
   const token = jwt.sign(
-    { id: user.id, name: user.name, email: user.email, role: user.role },
+    { id: user.id, name: user.name, email: user.email, role: user.role, profile_picture: user.profile_picture },
     process.env.JWT_SECRET,
     { expiresIn: '24h' }
   );
 
-  res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, profile_picture: user.profile_picture } });
 });
 
 // POST /api/auth/register (Admin only in production, open for seeding)
@@ -71,7 +71,7 @@ router.post('/register', (req, res) => {
 router.get('/me', auth, (req, res) => {
   console.log('GET /me: Loading profile for id:', req.user.id);
   try {
-    const user = db.prepare('SELECT id, name, email, role, status FROM users WHERE id = ?').get(req.user.id);
+    const user = db.prepare('SELECT id, name, email, role, status, is_on_break, profile_picture FROM users WHERE id = ?').get(req.user.id);
     if (!user) {
       console.warn('GET /me: User not found in DB:', req.user.id);
       return res.status(404).json({ error: 'User not found' });

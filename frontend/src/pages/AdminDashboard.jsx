@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -30,6 +32,8 @@ export default function AdminDashboard() {
   const [selectedWorker, setSelectedWorker] = useState(null);
   const { socket } = useSocket();
   const { isDark } = useTheme();
+  const { user, getImageUrl } = useAuth();
+  const navigate = useNavigate();
 
   const fetchSummary = useCallback(async () => {
     try {
@@ -109,24 +113,39 @@ export default function AdminDashboard() {
     const machineMap = Object.fromEntries((summary.machineCounts || []).map(r => [r.status, r.count]));
     const totalTasks = Object.values(taskMap).reduce((a, b) => a + b, 0);
     const completionRate = totalTasks > 0 ? Math.round(((taskMap.completed || 0) / totalTasks) * 100) : 0;
+    const totalDelay = (summary.workerPerformance || []).reduce((acc, w) => acc + (w.total_delay_mins || 0), 0);
     const pieData = (summary.taskCounts || []).map(r => ({ name: r.status.replace('_', ' '), value: r.count }));
 
     return (
       <div className="space-y-6 animate-slide-in">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total Tasks', value: totalTasks, icon: ClipboardList, color: 'text-blue-500' },
-            { label: 'Delayed Tasks', value: summary.delayedTasks || 0, icon: AlertTriangle, color: 'text-red-500' },
-            { label: 'Completed Today', value: summary.completedToday || 0, icon: CheckCircle2, color: 'text-emerald-500' },
-            { label: 'Completion Rate', value: `${completionRate}%`, icon: TrendingUp, color: 'text-purple-500' },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="card flex items-center gap-4">
-              <div className={`p-3 rounded-xl flex items-center justify-center bg-zinc-50 dark:bg-zinc-800/50`}>
+            { label: 'Total Tasks', value: totalTasks, icon: ClipboardList, color: 'text-blue-500', path: `/${user?.role}/tasks` },
+            { label: 'Delayed Tasks', value: `${summary.delayedTasks || 0}`, subValue: `${Math.round(totalDelay)}m delay`, icon: AlertTriangle, color: 'text-red-500', path: `/${user?.role}/tasks?filter=delayed` },
+            { label: 'Completed Today', value: summary.completedToday || 0, icon: CheckCircle2, color: 'text-emerald-500', path: `/${user?.role}/tasks?filter=completed` },
+            { label: 'Completion Rate', value: `${completionRate}%`, icon: TrendingUp, color: 'text-purple-500', path: null },
+          ].map(({ label, value, icon: Icon, color, path }) => (
+            <div
+              key={label}
+              className={`card flex items-center gap-4 transition-all duration-300 ${path ? 'hover:scale-[1.02] hover:shadow-lg cursor-pointer' : ''}`}
+              onClick={() => path && navigate(path)}
+            >
+              <div className={`p-3 rounded-xl flex items-center justify-center bg-zinc-50 dark:bg-zinc-800/50 group-hover:bg-white dark:group-hover:bg-zinc-700 transition-colors`}>
                 <Icon size={20} className={color} />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{value}</p>
-                <p className="text-xs text-zinc-500 font-medium">{label}</p>
+              <div className="flex-1">
+                <div className="flex items-end gap-1.5">
+                  <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{value}</p>
+                  {label === 'Delayed Tasks' && (
+                    <span className="text-[10px] font-black text-red-500 mb-1 px-1 bg-red-50 dark:bg-red-500/10 rounded uppercase">
+                      {Math.round(totalDelay)}m
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-zinc-500 font-medium">{label}</p>
+                  {path && <ChevronRight size={12} className="text-zinc-300" />}
+                </div>
               </div>
             </div>
           ))}
@@ -138,21 +157,25 @@ export default function AdminDashboard() {
           </h3>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: 'Running', key: 'running', cls: 'badge-running', count: machineMap.running || 0 },
-              { label: 'Occupied', key: 'occupied', cls: 'badge-paused', count: machineMap.occupied || 0 },
-              { label: 'Idle', key: 'idle', cls: 'badge-idle', count: machineMap.idle || 0 },
-              { label: 'Breakdown', key: 'breakdown', cls: 'badge-breakdown', count: machineMap.breakdown || 0 },
-            ].map(({ label, cls, count }) => (
-              <div key={label} className="flex flex-col items-center justify-center p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/30">
-                <p className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50 mb-3">{count}</p>
-                <span className={cls}>{label}</span>
+              { label: 'Running', key: 'running', cls: 'badge-running', count: machineMap.running || 0, path: `/${user?.role}/machines?filter=running` },
+              { label: 'Occupied', key: 'occupied', cls: 'badge-paused', count: machineMap.occupied || 0, path: `/${user?.role}/machines?filter=occupied` },
+              { label: 'Idle', key: 'idle', cls: 'badge-idle', count: machineMap.idle || 0, path: `/${user?.role}/machines?filter=idle` },
+              { label: 'Breakdown', key: 'breakdown', cls: 'badge-breakdown', count: machineMap.breakdown || 0, path: `/${user?.role}/machines?filter=breakdown` },
+            ].map(({ label, cls, count, key, path }) => (
+              <div
+                key={label}
+                onClick={() => navigate(path)}
+                className="flex flex-col items-center justify-center p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/30 hover:bg-white dark:hover:bg-zinc-800/50 transition-all cursor-pointer group shadow-sm hover:shadow-md"
+              >
+                <p className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50 mb-3 group-hover:scale-110 transition-transform">{count}</p>
+                <span className={`${cls} transition-colors`}>{label}</span>
               </div>
             ))}
           </div>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6">
-          <div className="card">
+          <div className="card min-w-0">
             <h3 className="font-semibold mb-6 flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
               <Activity size={18} className="text-zinc-500" /> Task Distribution
             </h3>
@@ -167,7 +190,7 @@ export default function AdminDashboard() {
               </ResponsiveContainer>
             </div>
           </div>
-          <div className="card">
+          <div className="card min-w-0">
             <h3 className="font-semibold mb-6 flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
               <TrendingUp size={18} className="text-zinc-500" /> Daily Trend
             </h3>
@@ -194,17 +217,26 @@ export default function AdminDashboard() {
     return (
       <div className="space-y-6 animate-slide-in">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="card flex flex-col justify-center">
+          <div
+            onClick={() => navigate(`/${user?.role}/tasks`)}
+            className="card flex flex-col justify-center cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all group"
+          >
             <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-2">Total Tasks</p>
-            <p className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50">{current.total_tasks || 0}</p>
+            <p className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50 group-hover:text-blue-600 transition-colors">{current.total_tasks || 0}</p>
           </div>
-          <div className="card flex flex-col justify-center border-l-4 border-l-emerald-500">
+          <div
+            onClick={() => navigate(`/${user?.role}/tasks?filter=completed`)}
+            className="card flex flex-col justify-center border-l-4 border-l-emerald-500 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all group"
+          >
             <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-2">Completed</p>
-            <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-500">{current.completed || 0}</p>
+            <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-500 group-hover:text-emerald-400 transition-colors">{current.completed || 0}</p>
           </div>
-          <div className="card flex flex-col justify-center border-l-4 border-l-red-500">
+          <div
+            onClick={() => navigate(`/${user?.role}/tasks?filter=delayed`)}
+            className="card flex flex-col justify-center border-l-4 border-l-red-500 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all group"
+          >
             <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-2">Delayed</p>
-            <p className="text-3xl font-extrabold text-red-600 dark:text-red-500">{current.delayed || 0}</p>
+            <p className="text-3xl font-extrabold text-red-600 dark:text-red-500 group-hover:text-red-400 transition-colors">{current.delayed || 0}</p>
           </div>
         </div>
         <div className="card">
@@ -235,20 +267,20 @@ export default function AdminDashboard() {
         <div className="card">
           <h3 className="font-semibold mb-6 text-zinc-900 dark:text-zinc-100">Monthly Summary</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div>
-              <p className="text-xs text-zinc-500 font-semibold mb-1">Total Tasks</p>
-              <p className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{current.total_tasks || 0}</p>
+            <div onClick={() => navigate(`/${user?.role}/tasks`)} className="cursor-pointer group">
+              <p className="text-xs text-zinc-500 font-semibold mb-1 group-hover:text-zinc-400 transition-colors uppercase tracking-widest">Total Tasks</p>
+              <p className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 group-hover:text-blue-500 transition-colors">{current.total_tasks || 0}</p>
+            </div>
+            <div onClick={() => navigate(`/${user?.role}/tasks?filter=completed`)} className="cursor-pointer group">
+              <p className="text-xs text-zinc-500 font-semibold mb-1 group-hover:text-zinc-400 transition-colors uppercase tracking-widest">Completed</p>
+              <p className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-500 group-hover:text-emerald-400 transition-colors">{current.completed || 0}</p>
+            </div>
+            <div onClick={() => navigate(`/${user?.role}/tasks?filter=delayed`)} className="cursor-pointer group">
+              <p className="text-xs text-zinc-500 font-semibold mb-1 group-hover:text-zinc-400 transition-colors uppercase tracking-widest">Delays</p>
+              <p className="text-2xl font-bold tracking-tight text-red-600 dark:text-red-500 group-hover:text-red-400 transition-colors">{current.delayed || 0}</p>
             </div>
             <div>
-              <p className="text-xs text-zinc-500 font-semibold mb-1">Completed</p>
-              <p className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-500">{current.completed || 0}</p>
-            </div>
-            <div>
-              <p className="text-xs text-zinc-500 font-semibold mb-1">Delays</p>
-              <p className="text-2xl font-bold tracking-tight text-red-600 dark:text-red-500">{current.delayed || 0}</p>
-            </div>
-            <div>
-              <p className="text-xs text-zinc-500 font-semibold mb-1">Avg Time</p>
+              <p className="text-xs text-zinc-500 font-semibold mb-1 uppercase tracking-widest">Avg Time</p>
               <p className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{current.avg_completion_time ? Math.round(current.avg_completion_time) : 0} <span className="text-sm font-medium text-zinc-400">min</span></p>
             </div>
           </div>
@@ -302,8 +334,12 @@ export default function AdminDashboard() {
                     className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 cursor-pointer transition-colors group"
                   >
                     <td className="py-4 px-3 font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-600 dark:text-zinc-400 group-hover:bg-zinc-900 group-hover:text-zinc-50 dark:group-hover:bg-white dark:group-hover:text-zinc-900 transition-colors">
-                        {w.worker_name?.charAt(0)}
+                      <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-600 dark:text-zinc-400 overflow-hidden shrink-0 transition-colors">
+                        {w.profile_picture ? (
+                          <img src={getImageUrl(w.profile_picture)} alt={w.worker_name} className="w-full h-full object-cover" />
+                        ) : (
+                          w.worker_name?.charAt(0)
+                        )}
                       </div>
                       <div className="flex flex-col">
                         <span className="font-bold">{w.worker_name}</span>

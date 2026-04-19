@@ -13,7 +13,7 @@ import WorkerDashboard from './pages/WorkerDashboard';
 import AnalyticsPage from './pages/AnalyticsPage';
 import UsersPage from './pages/UsersPage';
 import RequestsPage from './pages/RequestsPage';
-import LogsPage from './pages/LogsPage';
+import HistoryPage from './pages/HistoryPage';
 import ProfilePage from './pages/ProfilePage';
 
 function ProtectedRoute({ children, allowedRoles }) {
@@ -79,7 +79,7 @@ function AppRoutes() {
 
       {/* Monitor */}
       <Route path="/analytics" element={<ProtectedRoute allowedRoles={['admin', 'supervisor', 'monitor']}><Layout><AnalyticsPage /></Layout></ProtectedRoute>} />
-      <Route path="/logs" element={<ProtectedRoute allowedRoles={['admin', 'supervisor', 'monitor']}><Layout><LogsPage /></Layout></ProtectedRoute>} />
+      <Route path="/history" element={<ProtectedRoute allowedRoles={['admin', 'supervisor', 'monitor']}><Layout><HistoryPage /></Layout></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />
 
       <Route path="/" element={<Navigate to="/login" replace />} />

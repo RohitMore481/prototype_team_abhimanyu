@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -11,8 +12,19 @@ import {
 
 const STATUS_ORDER = ['not_started', 'in_progress', 'paused', 'completed', 'delayed'];
 
-function StatusBadge({ status, unassigned, workerStatus, machineStatus }) {
+function StatusBadge({ status, unassigned, workerStatus, machineStatus, deadline, completedAt }) {
   const { t } = useLanguage();
+
+  let delayInfo = null;
+  if (deadline) {
+    const d = new Date(deadline);
+    const end = (status === 'completed' && completedAt) ? new Date(completedAt) : new Date();
+    if (end > d) {
+      const mins = Math.floor((end - d) / 60000);
+      if (mins > 0) delayInfo = `${mins}m ${t('delayed')}`;
+    }
+  }
+
   if (unassigned && status === 'not_started') {
     return <span className="badge badge-unassigned flex items-center gap-1"><Loader2 size={10} className="animate-spin" /> {t('unassigned')}</span>;
   }
@@ -24,7 +36,17 @@ function StatusBadge({ status, unassigned, workerStatus, machineStatus }) {
       return <span className="badge badge-paused flex items-center gap-1"><Clock size={10} /> {t('pending')}</span>;
     }
   }
-  return <span className={`badge badge-${status}`}>{t(status)}</span>;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className={`badge badge-${status}`}>{t(status)}</span>
+      {delayInfo && (
+        <span className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-tighter animate-pulse flex items-center gap-1">
+          <AlertCircle size={10} /> {delayInfo}
+        </span>
+      )}
+    </div>
+  );
 }
 
 function PriorityBadge({ priority }) {
@@ -211,9 +233,10 @@ function DeleteConfirmationModal({ task, onClose, onConfirm }) {
 }
 
 export default function TasksPage() {
-  const { user } = useAuth();
+  const { user, getImageUrl } = useAuth();
   const { socket } = useSocket();
   const { t } = useLanguage();
+  const [searchParams] = useSearchParams();
   const [tasks, setTasks] = useState([]);
   const [workers, setWorkers] = useState([]);
   const [machines, setMachines] = useState([]);
@@ -223,8 +246,9 @@ export default function TasksPage() {
   const [overrideTask, setOverrideTask] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterStatus, setFilterStatus] = useState(searchParams.get('filter') || '');
   const [filterPriority, setFilterPriority] = useState('');
+  const [filterWorker, setFilterWorker] = useState(searchParams.get('workerId') || '');
 
   const fetchAll = useCallback(async () => {
     try {
@@ -258,7 +282,8 @@ export default function TasksPage() {
     const matchSearch = !search || t.title.toLowerCase().includes(s) || t.worker_name?.toLowerCase().includes(s) || t.machine_name?.toLowerCase().includes(s);
     const matchStatus = !filterStatus || t.status === filterStatus;
     const matchPriority = !filterPriority || t.priority === filterPriority;
-    return matchSearch && matchStatus && matchPriority;
+    const matchWorker = !filterWorker || String(t.assigned_worker_id) === String(filterWorker);
+    return matchSearch && matchStatus && matchPriority && matchWorker;
   });
 
   const isWorker = user?.role === 'worker';
@@ -310,10 +335,28 @@ export default function TasksPage() {
                 {filtered.map(task => (
                   <tr key={task.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors group">
                     <td className="px-5 py-4 font-semibold text-zinc-900 dark:text-zinc-100">{task.title}</td>
-                    <td className="px-5 py-4">{task.worker_name || t('unassigned')}</td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-500 overflow-hidden shrink-0">
+                          {task.worker_picture ? (
+                            <img src={getImageUrl(task.worker_picture)} alt={task.worker_name} className="w-full h-full object-cover" />
+                          ) : (
+                            <User size={12} />
+                          )}
+                        </div>
+                        <span className="truncate max-w-[100px]">{task.worker_name || t('unassigned')}</span>
+                      </div>
+                    </td>
                     <td className="px-5 py-4">{task.machine_name || '—'}</td>
                     <td className="px-5 py-4"><PriorityBadge priority={task.priority} /></td>
-                    <td className="px-5 py-4"><StatusBadge status={task.status} unassigned={!task.assigned_worker_id} /></td>
+                    <td className="px-5 py-4">
+                      <StatusBadge
+                        status={task.status}
+                        unassigned={!task.assigned_worker_id}
+                        deadline={task.deadline_at}
+                        completedAt={task.completed_at}
+                      />
+                    </td>
                     <td className="px-5 py-4">{task.expected_minutes} min</td>
                     <td className="px-5 py-4 text-right">
                       {!isWorker && (

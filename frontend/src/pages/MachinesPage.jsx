@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -144,10 +145,12 @@ function MachineModal({ machine, onClose, onSave }) {
 export default function MachinesPage() {
   const { user } = useAuth();
   const { socket } = useSocket();
+  const [searchParams] = useSearchParams();
   const [machines, setMachines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editMachine, setEditMachine] = useState(null);
+  const filterStatus = searchParams.get('filter') || '';
 
   const fetchMachines = useCallback(async () => {
     try {
@@ -175,10 +178,14 @@ export default function MachinesPage() {
 
   const canEdit = user?.role !== 'worker';
 
+  const filteredMachines = filterStatus
+    ? machines.filter(m => m.status === filterStatus)
+    : machines;
+
   const grouped = {
-    running: machines.filter(m => m.status === 'running'),
-    idle: machines.filter(m => m.status === 'idle'),
-    breakdown: machines.filter(m => m.status === 'breakdown'),
+    running: filteredMachines.filter(m => m.status === 'running'),
+    idle: filteredMachines.filter(m => m.status === 'idle'),
+    breakdown: filteredMachines.filter(m => m.status === 'breakdown'),
   };
 
   return (

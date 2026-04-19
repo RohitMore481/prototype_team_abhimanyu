@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 
 export default function Layout({ children }) {
-  const { user, logout } = useAuth();
+  const { user, logout, getImageUrl } = useAuth();
   const { connected } = useSocket();
   const { isDark, toggleTheme } = useTheme();
   const { lang, setLang, t } = useLanguage();
@@ -32,7 +32,7 @@ export default function Layout({ children }) {
       { path: '/admin/machines', label: t('machines'), icon: Cpu },
       { path: '/admin/users', label: t('users'), icon: Users },
       { path: '/admin/analytics', label: t('analytics'), icon: BarChart3 },
-      { path: '/logs', label: t('logs'), icon: HistoryIcon },
+      { path: '/history', label: t('history'), icon: HistoryIcon },
     ],
     supervisor: [
       { path: '/supervisor', label: t('dashboard'), icon: LayoutDashboard },
@@ -40,14 +40,14 @@ export default function Layout({ children }) {
       { path: '/supervisor/machines', label: t('machines'), icon: Cpu },
       { path: '/supervisor/analytics', label: t('analytics'), icon: BarChart3 },
       { path: '/supervisor/requests', label: t('requests'), icon: Coffee },
-      { path: '/logs', label: t('logs'), icon: HistoryIcon },
+      { path: '/history', label: t('history'), icon: HistoryIcon },
     ],
     worker: [
       { path: '/worker', label: t('my_tasks'), icon: ClipboardList },
     ],
     monitor: [
       { path: '/analytics', label: t('analytics'), icon: BarChart3 },
-      { path: '/logs', label: t('logs'), icon: HistoryIcon },
+      { path: '/history', label: t('history'), icon: HistoryIcon },
     ],
   };
 
@@ -105,8 +105,12 @@ export default function Layout({ children }) {
 
         <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center font-bold text-sm text-zinc-600 dark:text-zinc-300">
-              {user?.name?.[0]?.toUpperCase()}
+            <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center font-bold text-sm text-zinc-600 dark:text-zinc-300 overflow-hidden shrink-0">
+              {user?.profile_picture ? (
+                <img src={getImageUrl(user.profile_picture)} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                user?.name?.[0]?.toUpperCase()
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-zinc-900 dark:text-white truncate">{user?.name}</p>

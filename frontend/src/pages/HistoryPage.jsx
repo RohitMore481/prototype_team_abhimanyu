@@ -4,27 +4,27 @@ import { useLanguage } from '../context/LanguageContext';
 import { History as HistoryIcon, Search, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export default function LogsPage() {
+export default function HistoryPage() {
     const { t } = useLanguage();
-    const [logs, setLogs] = useState([]);
+    const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('');
 
     useEffect(() => {
-        const fetchLogs = async () => {
+        const fetchHistory = async () => {
             try {
                 const res = await api.get('/logs/recent?limit=100');
-                setLogs(res.data);
+                setHistory(res.data);
             } catch (err) {
-                toast.error('Failed to fetch logs');
+                toast.error('Failed to fetch history');
             } finally {
                 setLoading(false);
             }
         };
-        fetchLogs();
+        fetchHistory();
     }, []);
 
-    const filteredLogs = logs.filter(log =>
+    const filteredHistory = history.filter(log =>
         log.task_title?.toLowerCase().includes(filter.toLowerCase()) ||
         log.action?.toLowerCase().includes(filter.toLowerCase()) ||
         log.performed_by_name?.toLowerCase().includes(filter.toLowerCase())
@@ -34,7 +34,7 @@ export default function LogsPage() {
         <div className="space-y-6 animate-slide-in">
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">System Logs</h1>
+                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">System History</h1>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium">Activity history across the shopfloor</p>
                 </div>
                 <div className="relative w-full sm:w-64">
@@ -42,7 +42,7 @@ export default function LogsPage() {
                     <input
                         type="text"
                         className="input pl-10 h-10 py-0"
-                        placeholder="Search logs..."
+                        placeholder="Search history..."
                         value={filter}
                         onChange={e => setFilter(e.target.value)}
                     />
@@ -64,14 +64,14 @@ export default function LogsPage() {
                         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="5" className="px-6 py-12 text-center text-zinc-400">Loading logs...</td>
+                                    <td colSpan="5" className="px-6 py-12 text-center text-zinc-400">Loading history...</td>
                                 </tr>
-                            ) : filteredLogs.length === 0 ? (
+                            ) : filteredHistory.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" className="px-6 py-12 text-center text-zinc-400">No logs found</td>
+                                    <td colSpan="5" className="px-6 py-12 text-center text-zinc-400">No history found</td>
                                 </tr>
                             ) : (
-                                filteredLogs.map(log => (
+                                filteredHistory.map(log => (
                                     <tr key={log.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors">
                                         <td className="px-6 py-4 whitespace-nowrap text-xs font-mono text-zinc-400">
                                             {new Date(log.timestamp).toLocaleString()}

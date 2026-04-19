@@ -15,7 +15,7 @@ router.get('/', auth, (req, res) => {
     if (req.user.role === 'worker') {
         // Workers can only see their own requests
         const requests = db.prepare(`
-      SELECT r.*, u.name as user_name 
+      SELECT r.*, u.name as user_name, u.profile_picture as user_picture
       FROM requests r 
       JOIN users u ON r.user_id = u.id 
       WHERE r.user_id = ? 
@@ -25,7 +25,7 @@ router.get('/', auth, (req, res) => {
     }
 
     const requests = db.prepare(`
-    SELECT r.*, u.name as user_name 
+    SELECT r.*, u.name as user_name, u.profile_picture as user_picture
     FROM requests r 
     JOIN users u ON r.user_id = u.id 
     ORDER BY r.created_at DESC
@@ -49,7 +49,7 @@ router.post('/', auth, (req, res) => {
     }
 
     const result = db.prepare('INSERT INTO requests (user_id, type, data) VALUES (?, ?, ?)').run(userId, type, JSON.stringify(data || {}));
-    const newRequest = db.prepare('SELECT r.*, u.name as user_name FROM requests r JOIN users u ON r.user_id = u.id WHERE r.id = ?').get(result.lastInsertRowid);
+    const newRequest = db.prepare('SELECT r.*, u.name as user_name, u.profile_picture as user_picture FROM requests r JOIN users u ON r.user_id = u.id WHERE r.id = ?').get(result.lastInsertRowid);
 
     // Notify supervisors
     const supervisors = db.prepare("SELECT id FROM users WHERE role IN ('admin', 'supervisor')").all();
@@ -134,7 +134,7 @@ router.put('/:id', auth, (req, res) => {
 
     try {
         transaction();
-        const updatedRequest = db.prepare('SELECT r.*, u.name as user_name FROM requests r JOIN users u ON r.user_id = u.id WHERE r.id = ?').get(requestId);
+        const updatedRequest = db.prepare('SELECT r.*, u.name as user_name, u.profile_picture as user_picture FROM requests r JOIN users u ON r.user_id = u.id WHERE r.id = ?').get(requestId);
 
         // Notify user
         const msg = `Your ${request.type} request has been ${status}.`;

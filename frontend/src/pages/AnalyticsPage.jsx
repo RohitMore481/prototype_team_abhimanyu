@@ -33,6 +33,7 @@ export default function AnalyticsPage() {
     completed: w.completed || 0,
     delayed: w.delayed || 0,
     total: w.total_tasks || 0,
+    total_delay_mins: w.total_delay_mins || 0,
     efficiency: w.total_tasks > 0 ? Math.round((w.completed / w.total_tasks) * 100) : 0,
   }));
 
@@ -58,27 +59,32 @@ export default function AnalyticsPage() {
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Workers', value: data?.workerCount || 0, color: 'text-blue-600 dark:text-blue-400' },
-          { label: 'Delayed Tasks', value: data?.delayedTasks || 0, color: 'text-red-600 dark:text-red-400' },
-          { label: 'Completed Today', value: data?.completedToday || 0, color: 'text-emerald-600 dark:text-emerald-400' },
-          { label: 'Avg Efficiency', value: `${workerChartData.length ? Math.round(workerChartData.reduce((a, b) => a + b.efficiency, 0) / workerChartData.length) : 0}%`, color: 'text-purple-600 dark:text-purple-400' },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="card text-center p-6">
+          { label: 'Total Workers', value: data?.workerCount || 0, color: 'text-blue-600 dark:text-blue-400', path: '/admin/users' },
+          { label: 'Delayed Tasks', value: data?.delayedTasks || 0, color: 'text-zinc-600 dark:text-zinc-400', path: '/admin/tasks?filter=delayed' },
+          { label: 'Total Delay (Mins)', value: `${Math.round(workerChartData.reduce((a, b) => a + (b.total_delay_mins || 0), 0))}m`, color: 'text-red-600 dark:text-red-400', path: '/admin/tasks?filter=delayed' },
+          { label: 'Completed Today', value: data?.completedToday || 0, color: 'text-emerald-600 dark:text-emerald-400', path: '/admin/tasks?filter=completed' },
+          { label: 'Avg Efficiency', value: `${workerChartData.length ? Math.round(workerChartData.reduce((a, b) => a + b.efficiency, 0) / workerChartData.length) : 0}%`, color: 'text-purple-600 dark:text-purple-400', path: null },
+        ].map(({ label, value, color, path }) => (
+          <div
+            key={label}
+            className={`card text-center p-6 transition-all hover:shadow-lg hover:scale-[1.02] ${path ? 'cursor-pointer' : ''}`}
+            onClick={() => path && (window.location.href = path)}
+          >
             <p className={`text-4xl font-black tracking-tight ${color}`}>{value}</p>
             <p className="text-[11px] uppercase tracking-widest font-bold text-zinc-500 mt-2">{label}</p>
           </div>
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-6 min-w-0">
         {/* Worker Performance */}
         <div className="card">
           <h3 className="font-bold mb-6 flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
             <Users size={16} className="text-blue-500" /> Worker Efficiency
           </h3>
           {workerChartData.length > 0 ? (
-            <div className="h-[220px] w-full relative min-h-[220px]">
-              <ResponsiveContainer width="100%" height={220}>
+            <div className="h-[220px] w-full relative">
+              <ResponsiveContainer width="100%" height={220} minHeight={220}>
                 <BarChart data={workerChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="name" tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -99,8 +105,8 @@ export default function AnalyticsPage() {
             <Cpu size={16} className="text-blue-500" /> Machine Utilization
           </h3>
           {machineChartData.length > 0 ? (
-            <div className="h-[220px] w-full relative min-h-[220px]">
-              <ResponsiveContainer width="100%" height={220}>
+            <div className="h-[220px] w-full relative">
+              <ResponsiveContainer width="100%" height={220} minHeight={220}>
                 <BarChart data={machineChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="name" tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -122,8 +128,8 @@ export default function AnalyticsPage() {
           <h3 className="font-bold mb-6 flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
             <TrendingDown size={16} className="text-amber-500" /> Downtime Cause Analysis
           </h3>
-          <div className="h-[200px] w-full relative min-h-[200px]">
-            <ResponsiveContainer width="100%" height={200}>
+          <div className="h-[200px] w-full relative">
+            <ResponsiveContainer width="100%" height={200} minHeight={200}>
               <BarChart data={pauseData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                 <XAxis type="number" tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -140,7 +146,7 @@ export default function AnalyticsPage() {
       {(downtime?.downtimeByMachine?.length > 0) && (
         <div className="card overflow-hidden !p-0">
           <div className="p-6 border-b border-zinc-200 dark:border-zinc-800">
-            <h3 className="font-bold text-zinc-900 dark:text-zinc-100">Downtime Log by Machine</h3>
+            <h3 className="font-bold text-zinc-900 dark:text-zinc-100">Downtime History by Machine</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

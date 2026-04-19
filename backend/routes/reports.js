@@ -20,6 +20,8 @@ router.get('/weekly', auth, (req, res) => {
         COUNT(*) as total_tasks,
         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
         SUM(CASE WHEN status = 'delayed' THEN 1 ELSE 0 END) as delayed,
+        SUM(CASE WHEN deadline_at IS NOT NULL AND status != 'not_started' AND (completed_at > deadline_at OR (completed_at IS NULL AND datetime('now') > deadline_at)) 
+            THEN (strftime('%s', COALESCE(completed_at, datetime('now'))) - strftime('%s', deadline_at))/60 ELSE 0 END) as total_delay_mins,
         AVG(CASE WHEN status = 'completed' THEN expected_minutes ELSE NULL END) as avg_expected,
         AVG(CASE WHEN status = 'completed' THEN (strftime('%s', completed_at) - strftime('%s', started_at))/60 ELSE NULL END) as avg_actual
       FROM tasks
@@ -62,6 +64,8 @@ router.get('/monthly', auth, (req, res) => {
         COUNT(*) as total_tasks,
         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
         SUM(CASE WHEN status = 'delayed' THEN 1 ELSE 0 END) as delayed,
+        SUM(CASE WHEN deadline_at IS NOT NULL AND status != 'not_started' AND (completed_at > deadline_at OR (completed_at IS NULL AND datetime('now') > deadline_at)) 
+            THEN (strftime('%s', COALESCE(completed_at, datetime('now'))) - strftime('%s', deadline_at))/60 ELSE 0 END) as total_delay_mins,
         AVG(CASE WHEN status = 'completed' THEN (strftime('%s', completed_at) - strftime('%s', started_at))/60 ELSE NULL END) as avg_completion_time
       FROM tasks
       WHERE created_at BETWEEN ? AND ?
@@ -96,9 +100,12 @@ router.get('/workers', auth, (req, res) => {
       u.name as worker_name,
       u.status,
       u.is_on_break,
+      u.profile_picture,
       COUNT(t.id) as total_tasks,
       SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) as completed,
       SUM(CASE WHEN t.status = 'delayed' THEN 1 ELSE 0 END) as delayed,
+      SUM(CASE WHEN t.deadline_at IS NOT NULL AND t.status != 'not_started' AND (t.completed_at > t.deadline_at OR (t.completed_at IS NULL AND datetime('now') > t.deadline_at)) 
+          THEN (strftime('%s', COALESCE(t.completed_at, datetime('now'))) - strftime('%s', t.deadline_at))/60 ELSE 0 END) as total_delay_mins,
       AVG(CASE WHEN t.status = 'completed' THEN (strftime('%s', t.completed_at) - strftime('%s', t.started_at))/60 ELSE NULL END) as avg_completion_time
     FROM users u
     LEFT JOIN tasks t ON t.assigned_worker_id = u.id
@@ -168,6 +175,8 @@ router.get('/worker/:id', auth, (req, res) => {
       COUNT(*) as total_tasks,
       SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
       SUM(CASE WHEN status = 'delayed' THEN 1 ELSE 0 END) as delayed,
+      SUM(CASE WHEN deadline_at IS NOT NULL AND status != 'not_started' AND (completed_at > deadline_at OR (completed_at IS NULL AND datetime('now') > deadline_at)) 
+          THEN (strftime('%s', COALESCE(completed_at, datetime('now'))) - strftime('%s', deadline_at))/60 ELSE 0 END) as total_delay_mins,
       AVG(CASE WHEN status = 'completed' THEN (strftime('%s', completed_at) - strftime('%s', started_at))/60 ELSE NULL END) as avg_time
     FROM tasks
     WHERE assigned_worker_id = ?
@@ -182,7 +191,7 @@ router.get('/worker/:id', auth, (req, res) => {
     LIMIT 10
   `).all(targetId);
 
-  res.json({ dailyTrend, weeklyTrend, monthlyTrend, activityLogs, breakLogs, collective });
+  res.json({ dailyTrend, weeklyTrend, monthlyTrend, activityHistory: activityLogs, breakHistory: breakLogs, collective });
 });
 
 module.exports = router;

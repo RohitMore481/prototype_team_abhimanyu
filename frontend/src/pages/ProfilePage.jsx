@@ -6,7 +6,7 @@ import { User, Lock, Save, Loader2, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
-    const { user, setUser } = useAuth();
+    const { user, setUser, getImageUrl } = useAuth();
     const { t } = useLanguage();
     const [form, setForm] = useState({ name: '', password: '', confirmPassword: '' });
     const [loading, setLoading] = useState(false);
@@ -49,7 +49,8 @@ export default function ProfilePage() {
         }
     };
 
-    const isAdmin = user?.email === 'admin@shopfloor.com';
+    const isAdmin = user?.role === 'admin';
+    const isPrimaryAdmin = user?.email === 'admin@shopfloor.com';
 
     if (fetching) return (
         <div className="flex justify-center py-20">
@@ -59,13 +60,22 @@ export default function ProfilePage() {
 
     return (
         <div className="max-w-2xl mx-auto py-8 animate-slide-in">
-            <div className="mb-8">
-                <h1 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tight">Personal Profile</h1>
-                <p className="text-zinc-500 dark:text-zinc-400 mt-1 font-medium text-sm">Manage your account details and security</p>
+            <div className="mb-8 flex items-center gap-6">
+                <div className="w-24 h-24 rounded-3xl bg-zinc-100 dark:bg-zinc-800 border-4 border-white dark:border-zinc-800 shadow-xl flex items-center justify-center overflow-hidden shrink-0">
+                    {user?.profile_picture ? (
+                        <img src={getImageUrl(user.profile_picture)} alt={user.name} className="w-full h-full object-cover" />
+                    ) : (
+                        <User size={40} className="text-zinc-400" />
+                    )}
+                </div>
+                <div>
+                    <h1 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tight">Personal Profile</h1>
+                    <p className="text-zinc-500 dark:text-zinc-400 mt-1 font-medium text-sm">Manage your account details and security</p>
+                </div>
             </div>
 
             <div className="glass-card shadow-xl border-zinc-200 dark:border-zinc-800">
-                {isAdmin && (
+                {isPrimaryAdmin && (
                     <div className="mb-8 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl flex gap-3 text-amber-800 dark:text-amber-400">
                         <ShieldCheck size={20} className="shrink-0 mt-0.5" />
                         <div className="text-sm">
@@ -136,7 +146,7 @@ export default function ProfilePage() {
                         </div>
                     </div>
 
-                    {!isAdmin && (
+                    {isAdmin && !isPrimaryAdmin && (
                         <div className="pt-4">
                             <button
                                 type="submit"
@@ -146,6 +156,11 @@ export default function ProfilePage() {
                                 {loading ? <Loader2 className="animate-spin mr-2" size={18} /> : <Save className="mr-2" size={18} />}
                                 Save Profile Changes
                             </button>
+                        </div>
+                    )}
+                    {!isAdmin && (
+                        <div className="pt-4 p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 text-center">
+                            <p className="text-zinc-500 text-xs font-medium italic">Your profile details are managed by the administrator and are currently read-only.</p>
                         </div>
                     )}
                 </form>

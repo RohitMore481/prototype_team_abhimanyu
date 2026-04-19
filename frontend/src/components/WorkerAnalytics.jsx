@@ -38,7 +38,7 @@ export default function WorkerAnalytics({ workerId }) {
 
   if (!data) return <div className="text-center py-10 font-medium text-zinc-500">No data available for this worker.</div>;
 
-  const { collective, dailyTrend, monthlyTrend, activityLogs, breakLogs } = data;
+  const { collective = {}, dailyTrend = [], monthlyTrend = [], activityHistory = [], breakHistory = [] } = data || {};
   const completionRate = collective.total_tasks > 0
     ? Math.round((collective.completed / collective.total_tasks) * 100)
     : 0;
@@ -48,12 +48,16 @@ export default function WorkerAnalytics({ workerId }) {
       {/* Top Level Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Completion Rate', value: `${completionRate}%`, icon: PieChartIcon, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20' },
-          { label: 'Total Tasks', value: collective.total_tasks, icon: BarChart3, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20' },
-          { label: 'Avg Speed', value: `${Math.round(collective.avg_time || 0)}m`, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20' },
-          { label: 'Total Delays', value: collective.delayed || 0, icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20' },
+          { label: 'Completion Rate', value: `${completionRate}%`, icon: PieChartIcon, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20', path: null },
+          { label: 'Tasks Done', value: collective.completed || 0, icon: BarChart3, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20', path: `/admin/tasks?filter=completed&workerId=${workerId}` },
+          { label: 'Delayed Tasks', value: collective.delayed || 0, icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20', path: `/admin/tasks?filter=delayed&workerId=${workerId}` },
+          { label: 'Avg Speed', value: `${Math.round(collective.avg_time || 0)}m`, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20', path: null },
         ].map((item, i) => (
-          <div key={i} className={`p-5 rounded-2xl ${item.bg} transition-shadow hover:shadow-sm`}>
+          <div
+            key={i}
+            className={`p-5 rounded-2xl ${item.bg} transition-all hover:shadow-md hover:scale-[1.02] ${item.path ? 'cursor-pointer' : ''}`}
+            onClick={() => item.path && (window.location.href = item.path)}
+          >
             <item.icon size={18} className={`${item.color} mb-3 opacity-90`} />
             <p className="text-3xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">{item.value}</p>
             <p className="text-[11px] uppercase tracking-widest text-zinc-600 dark:text-zinc-400 font-bold mt-1">{item.label}</p>
@@ -75,7 +79,7 @@ export default function WorkerAnalytics({ workerId }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-50 dark:divide-zinc-800/50">
-              {breakLogs && breakLogs.length > 0 ? breakLogs.map((log, i) => {
+              {breakHistory && breakHistory.length > 0 ? breakHistory.map((log, i) => {
                 const start = new Date(log.start_time);
                 const end = log.end_time ? new Date(log.end_time) : null;
                 const duration = end ? Math.round((end - start) / 60000) : 'In Progress';
@@ -97,9 +101,9 @@ export default function WorkerAnalytics({ workerId }) {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-6 min-w-0">
         {/* Daily & Weekly Section */}
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
           <div className="card">
             <h4 className="text-sm font-bold mb-6 flex items-center gap-2 text-zinc-900 dark:text-zinc-100"><TrendingUp size={16} className="text-blue-500" /> Daily Task Completion</h4>
             <div className="h-48">
@@ -131,12 +135,12 @@ export default function WorkerAnalytics({ workerId }) {
           </div>
         </div>
 
-        {/* Activity Logs Section */}
+        {/* Recent Activity History */}
         <div className="card flex flex-col pt-6 pb-2 px-6">
-          <h4 className="text-sm font-bold mb-6 flex items-center gap-2 text-zinc-900 dark:text-zinc-100"><History size={16} className="text-amber-500" /> Recent Activity Logs</h4>
+          <h4 className="text-sm font-bold mb-6 flex items-center gap-2 text-zinc-900 dark:text-zinc-100"><History size={16} className="text-amber-500" /> Recent Activity History</h4>
           <div className="flex-1 space-y-4 overflow-y-auto max-h-[500px] pr-2 custom-scrollbar">
-            {activityLogs.length === 0 && <p className="text-center py-10 text-zinc-500 text-xs font-medium italic bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800">No activity recorded for this worker.</p>}
-            {activityLogs.map((log, i) => (
+            {activityHistory.length === 0 && <p className="text-center py-10 text-zinc-500 text-xs font-medium italic bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800">No activity recorded for this worker.</p>}
+            {activityHistory.map((log, i) => (
               <div key={i} className="group relative pl-6 pb-4 border-l border-zinc-200 dark:border-zinc-800 last:border-0 last:pb-0">
                 <div className="absolute left-[-5px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-950 bg-zinc-300 dark:bg-zinc-700 group-hover:bg-blue-500 transition-colors shadow-sm" />
                 <div className="flex items-center justify-between mb-1.5">

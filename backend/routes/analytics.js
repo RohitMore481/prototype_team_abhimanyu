@@ -37,6 +37,8 @@ router.get('/summary', auth, (req, res) => {
       COUNT(t.id) as total_tasks,
       SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) as completed,
       SUM(CASE WHEN t.status = 'delayed' THEN 1 ELSE 0 END) as delayed,
+      SUM(CASE WHEN t.deadline_at IS NOT NULL AND t.status != 'not_started' AND (t.completed_at > t.deadline_at OR (t.completed_at IS NULL AND datetime('now') > t.deadline_at)) 
+          THEN (strftime('%s', COALESCE(t.completed_at, datetime('now'))) - strftime('%s', t.deadline_at))/60 ELSE 0 END) as total_delay_mins,
       AVG(CASE WHEN t.started_at IS NOT NULL AND t.completed_at IS NOT NULL 
           THEN (julianday(t.completed_at) - julianday(t.started_at)) * 24 * 60 ELSE NULL END) as avg_completion_min
     FROM users u

@@ -19,6 +19,7 @@ db.exec(`
     status TEXT NOT NULL DEFAULT 'idle' CHECK(status IN ('idle','busy','paused')),
     is_on_break INTEGER DEFAULT 0,
     last_idle_at DATETIME,
+    profile_picture TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 

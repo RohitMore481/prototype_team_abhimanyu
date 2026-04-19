@@ -3,11 +3,12 @@ import api from '../utils/api';
 import { useSocket } from '../context/SocketContext';
 import { useLanguage } from '../context/LanguageContext';
 import toast from 'react-hot-toast';
-import { Check, X, Clock, AlertTriangle, Coffee, Cpu, Loader2, Search } from 'lucide-react';
+import { Check, X, Clock, AlertTriangle, Coffee, Cpu, Loader2, Search, User } from 'lucide-react';
 
 export default function RequestsPage() {
     const { t } = useLanguage();
     const { socket } = useSocket();
+    const { getImageUrl } = useAuth();
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('pending');
@@ -89,8 +90,12 @@ export default function RequestsPage() {
                         <div key={request.id} className={`p-6 rounded-2xl border transition-all ${request.status === 'pending' ? 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 shadow-sm ring-1 ring-blue-500/10' : 'bg-zinc-50/50 dark:bg-zinc-900/20 border-zinc-100 dark:border-zinc-800 opacity-80'}`}>
                             <div className="flex flex-wrap items-center justify-between gap-4">
                                 <div className="flex items-center gap-4">
-                                    <div className={`p-3 rounded-xl ${request.type === 'break' ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' : 'bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400'}`}>
-                                        {request.type === 'break' ? <Coffee size={24} /> : <Cpu size={24} />}
+                                    <div className="w-12 h-12 rounded-xl bg-zinc-100 dark:bg-zinc-800 border-2 border-white dark:border-zinc-800 shadow-sm flex items-center justify-center overflow-hidden shrink-0">
+                                        {request.user_picture ? (
+                                            <img src={getImageUrl(request.user_picture)} alt={request.user_name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <User size={24} className="text-zinc-400" />
+                                        )}
                                     </div>
                                     <div>
                                         <div className="flex items-center gap-2">

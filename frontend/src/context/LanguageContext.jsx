@@ -21,7 +21,7 @@ const translations = {
         task_pool: 'Available Task Pool',
         active_tasks: 'Your Active Tasks',
         pending_paused: 'Pending / Paused',
-        completion_logs: 'Your Completion Logs',
+        completion_history: 'Your Completion History',
         view_history: 'View History',
         accept_task: 'Accept Task',
         shopfloor_tasks: 'Shopfloor Tasks',
@@ -86,7 +86,7 @@ const translations = {
         task_pool: 'उपलब्ध टास्क पूल',
         active_tasks: 'आपके सक्रिय कार्य',
         pending_paused: 'लंबित / रुका हुआ',
-        completion_logs: 'आपकी पूर्णता लॉग',
+        completion_history: 'आपकी पूर्णता इतिहास',
         view_history: 'इतिहास देखें',
         accept_task: 'कार्य स्वीकार करें',
         shopfloor_tasks: 'शॉपफ्लोर टास्क',
@@ -132,7 +132,7 @@ const translations = {
         break_taken: 'ब्रेक लिया गया',
         break_limit_reached: 'दैनिक ब्रेक सीमा समाप्त',
         requests: 'अनुरोध',
-        logs: 'लॉग्स',
+        history: 'इतिहास',
         monitor: 'मॉनिटर',
     }
 };

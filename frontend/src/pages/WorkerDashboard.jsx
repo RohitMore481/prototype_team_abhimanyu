@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useLanguage } from '../context/LanguageContext';
 import toast from 'react-hot-toast';
-import { Play, Pause, CheckCircle, Clock, AlertTriangle, Cpu, X, Loader2, History, ClipboardList } from 'lucide-react';
+import { Play, Pause, CheckCircle, Clock, AlertTriangle, Cpu, X, Loader2, History, ClipboardList, User } from 'lucide-react';
 
 const PAUSE_REASONS = [
   'Material not available',
@@ -82,7 +82,7 @@ function PauseModal({ onConfirm, onClose }) {
   );
 }
 
-function LogsModal({ tasks, onClose }) {
+function HistoryModal({ tasks, onClose }) {
   const { t } = useLanguage();
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-zinc-900/50 dark:bg-black/70 backdrop-blur-sm animate-fade-in">
@@ -118,26 +118,48 @@ function TaskCard({ task, onAction, isPool, onClaim, hideActions, isOnBreak }) {
   const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [showPause, setShowPause] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [timeState, setTimeState] = useState({
+    elapsed: '00:00:00',
+    progress: 0,
+    isExceeded: false,
+    displayLabel: 'Time Left'
+  });
 
   useEffect(() => {
-    if (task.status !== 'in_progress' || !task.started_at) {
-      setProgress(0);
-      return;
-    }
-    const update = () => {
-      const elapsed = (Date.now() - new Date(task.started_at).getTime()) / 60000;
-      const p = (elapsed / task.expected_minutes) * 100;
-      setProgress(p);
-    };
-    update();
-    const timer = setInterval(update, 10000);
-    return () => clearInterval(timer);
-  }, [task.status, task.started_at, task.expected_minutes]);
+    if (task.status === 'completed' || task.status === 'not_started') return;
 
-  const elapsed = task.started_at
-    ? Math.round((Date.now() - new Date(task.started_at).getTime()) / 60000)
-    : null;
+    const update = () => {
+      let totalSeconds = task.total_elapsed_seconds || 0;
+      if (task.status === 'in_progress' && task.last_action_at) {
+        totalSeconds += Math.floor((Date.now() - new Date(task.last_action_at).getTime()) / 1000);
+      }
+
+      const expectedSeconds = task.expected_minutes * 60;
+      const diffSeconds = expectedSeconds - totalSeconds;
+
+      const isExceeded = diffSeconds < 0;
+      const absSeconds = Math.abs(diffSeconds);
+
+      const h = Math.floor(absSeconds / 3600);
+      const m = Math.floor((absSeconds % 3600) / 60);
+      const s = Math.floor(absSeconds % 60);
+      const formatted = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+
+      const p = (totalSeconds / expectedSeconds) * 100;
+
+      setTimeState({
+        elapsed: formatted,
+        progress: p,
+        isExceeded,
+        displayLabel: isExceeded ? 'Exceeded' : 'Time Left'
+      });
+    };
+
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [task.status, task.total_elapsed_seconds, task.last_action_at, task.expected_minutes]);
+
   const overtime = task.deadline_at && new Date() > new Date(task.deadline_at);
 
   const handleAction = async (action, pauseReason, note) => {
@@ -208,15 +230,24 @@ function TaskCard({ task, onAction, isPool, onClaim, hideActions, isOnBreak }) {
         <span className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400">
           <Clock size={12} className="text-zinc-400" /> {task.expected_minutes}m {t('expected')}
         </span>
+        {task.status === 'delayed' && (
+          <span className="flex items-center gap-1.5 text-red-600 font-bold animate-pulse">
+            <AlertTriangle size={12} /> {t('delayed')}
+          </span>
+        )}
       </div>
 
-      {task.status === 'in_progress' && (
-        <div className="mb-5">
+      {(task.status === 'in_progress' || task.status === 'paused') && (
+        <div className="mb-5 space-y-3">
+          <div className={`flex justify-between items-center px-4 py-2 rounded-xl border transition-colors ${timeState.isExceeded ? 'bg-red-50 dark:bg-red-500/10 border-red-100 dark:border-red-500/20' : 'bg-blue-50 dark:bg-blue-500/10 border-blue-100 dark:border-blue-500/20'}`}>
+            <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${timeState.isExceeded ? 'text-red-600 dark:text-red-400' : 'text-blue-700 dark:text-blue-400'}`}>{timeState.displayLabel}</span>
+            <span className={`text-xl font-mono font-bold tracking-tighter ${timeState.isExceeded ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>{timeState.elapsed}</span>
+          </div>
           <ProgressBar
-            progress={progress}
+            progress={timeState.progress}
             label={t('status')}
-            sublabel={progress >= 100 ? 'Delayed' : `${Math.round(progress)}%`}
-            color={progress >= 100 ? 'bg-red-500' : 'bg-blue-500'}
+            sublabel={timeState.isExceeded ? 'Deadline Exceeded' : `${Math.round(timeState.progress)}%`}
+            color={timeState.isExceeded ? 'bg-red-500' : 'bg-blue-500'}
           />
         </div>
       )}
@@ -228,7 +259,7 @@ function TaskCard({ task, onAction, isPool, onClaim, hideActions, isOnBreak }) {
               className={`btn-primary w-full py-3 ${isOnBreak || task.machine_status === 'breakdown' ? 'opacity-50 cursor-not-allowed' : ''}`}
               onClick={() => !isOnBreak && task.machine_status !== 'breakdown' && onClaim()}
               disabled={loading || isOnBreak || task.machine_status === 'breakdown'}
-              title={isOnBreak ? 'Cannot accept new tasks while on break or working' : task.machine_status === 'breakdown' ? 'Cannot claim: Machine is broken' : ''}
+              title={isOnBreak ? 'Finish your current active task before accepting a new one' : task.machine_status === 'breakdown' ? 'Cannot claim: Machine is broken' : ''}
             >
               {loading ? <Loader2 size={16} className="animate-spin mr-1" /> : <Play size={16} className="mr-1" />}
               {t('accept_task')}
@@ -245,7 +276,7 @@ function TaskCard({ task, onAction, isPool, onClaim, hideActions, isOnBreak }) {
                   className={`btn-success flex-1 justify-center py-3 ${isOnBreak || task.machine_status === 'breakdown' ? 'opacity-50 cursor-not-allowed' : ''}`}
                   onClick={() => !isOnBreak && task.machine_status !== 'breakdown' && handleAction('start')}
                   disabled={loading || isOnBreak || task.machine_status === 'breakdown'}
-                  title={isOnBreak ? 'Cannot resume while on break' : task.machine_status === 'breakdown' ? 'Machine is broken' : ''}
+                  title={isOnBreak ? 'Finish your current active task first' : task.machine_status === 'breakdown' ? 'Machine is broken' : ''}
                 >
                   {loading ? <Loader2 size={16} className="animate-spin mr-1" /> : <Play size={16} className="mr-1" />}
                   {task.status === 'paused' ? t('resume_task') : t('start_task')}
@@ -272,13 +303,13 @@ function TaskCard({ task, onAction, isPool, onClaim, hideActions, isOnBreak }) {
 }
 
 export default function WorkerDashboard() {
-  const { user } = useAuth();
+  const { user, getImageUrl } = useAuth();
   const { socket } = useSocket();
   const { t } = useLanguage();
   const [tasks, setTasks] = useState([]);
   const [poolTasks, setPoolTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showLogs, setShowLogs] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [breakStatus, setBreakStatus] = useState({ is_on_break: false, already_taken_today: false });
   const [breakProgress, setBreakProgress] = useState(0);
   const [breakTimeLeft, setBreakTimeLeft] = useState('');
@@ -393,9 +424,18 @@ export default function WorkerDashboard() {
     <div className="space-y-6 animate-slide-in max-w-[1400px] mx-auto pb-12 px-4 lg:px-8">
       <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl overflow-hidden relative">
         <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-zinc-400 text-sm font-semibold uppercase tracking-widest">{t('welcome')}</p>
-            <h1 className="text-3xl font-extrabold text-zinc-900 dark:text-white mt-1 tracking-tight">{user?.name}</h1>
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border-2 border-white dark:border-zinc-800 shadow-lg flex items-center justify-center overflow-hidden shrink-0">
+              {user?.profile_picture ? (
+                <img src={getImageUrl(user.profile_picture)} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                <User size={32} className="text-zinc-400" />
+              )}
+            </div>
+            <div>
+              <p className="text-zinc-400 text-sm font-semibold uppercase tracking-widest">{t('welcome')}</p>
+              <h1 className="text-3xl font-extrabold text-zinc-900 dark:text-white mt-1 tracking-tight">{user?.name}</h1>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             {breakStatus.is_on_break ? (
@@ -423,7 +463,7 @@ export default function WorkerDashboard() {
                 <Pause size={18} className="mr-2" /> {breakStatus.already_taken_today ? t('break_taken') : t('take_break')}
               </button>
             )}
-            <button className="btn-secondary px-6 py-3 font-bold group" onClick={() => setShowLogs(true)}>
+            <button className="btn-secondary px-6 py-3 font-bold group" onClick={() => setShowHistory(true)}>
               <History size={18} className="mr-2 group-hover:rotate-[-15deg] transition-transform" /> {t('view_history')}
             </button>
             <div className="flex gap-4 text-sm bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700/50">
@@ -472,7 +512,7 @@ export default function WorkerDashboard() {
             <div>
               <h2 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2">{t('pending_paused')}</h2>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {pending.map(t => <TaskCard key={t.id} task={t} onAction={fetchTasks} isOnBreak={breakStatus.is_on_break} />)}
+                {pending.map(t => <TaskCard key={t.id} task={t} onAction={fetchTasks} isOnBreak={breakStatus.is_on_break || active.length > 0} />)}
               </div>
             </div>
           )}
@@ -486,7 +526,7 @@ export default function WorkerDashboard() {
         </div>
       )}
 
-      {showLogs && <LogsModal tasks={done} onClose={() => setShowLogs(false)} />}
+      {showHistory && <HistoryModal tasks={done} onClose={() => setShowHistory(false)} />}
     </div>
   );
 }
