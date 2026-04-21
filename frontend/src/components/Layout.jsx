@@ -31,7 +31,7 @@ export default function Layout({ children }) {
       { path: '/admin/tasks', label: t('all_tasks'), icon: ClipboardList },
       { path: '/admin/machines', label: t('machines'), icon: Cpu },
       { path: '/admin/users', label: t('users'), icon: Users },
-      { path: '/admin/projects', label: 'Projects', icon: Factory },
+      { path: '/projects', label: 'Projects', icon: Factory },
       { path: '/admin/analytics', label: t('analytics'), icon: BarChart3 },
       { path: '/history', label: t('history'), icon: HistoryIcon },
     ],
@@ -40,11 +40,13 @@ export default function Layout({ children }) {
       { path: '/supervisor/tasks', label: t('manage_tasks'), icon: ClipboardList },
       { path: '/supervisor/machines', label: t('machines'), icon: Cpu },
       { path: '/supervisor/analytics', label: t('analytics'), icon: BarChart3 },
+      { path: '/projects', label: 'Projects', icon: Factory },
       { path: '/supervisor/requests', label: t('requests'), icon: Coffee },
       { path: '/history', label: t('history'), icon: HistoryIcon },
     ],
     worker: [
       { path: '/worker', label: t('my_tasks'), icon: ClipboardList },
+      { path: '/projects', label: 'Projects', icon: Factory },
     ],
     monitor: [
       { path: '/analytics', label: t('analytics'), icon: BarChart3 },

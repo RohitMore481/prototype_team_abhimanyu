@@ -74,6 +74,26 @@ router.get('/workers', auth, (req, res) => {
   res.json(workers);
 });
 
+// GET supervisors only
+router.get('/supervisors', auth, (req, res) => {
+  let query = "SELECT id, name, email, status, profile_picture, project_id FROM users WHERE role = 'supervisor'";
+  let projectId = req.user.project_id;
+  if (req.user.role === 'supervisor' || req.user.role === 'worker') {
+    const user = db.prepare('SELECT project_id FROM users WHERE id = ?').get(req.user.id);
+    projectId = user ? user.project_id : null;
+  }
+
+  const params = [];
+  if ((req.user.role === 'supervisor' || req.user.role === 'worker') && projectId !== null) {
+    query += " AND project_id = ?";
+    params.push(projectId);
+  } else if (req.user.role === 'supervisor' || req.user.role === 'worker') {
+    query += " AND project_id = -1";
+  }
+  const supervisors = db.prepare(query).all(...params);
+  res.json(supervisors);
+});
+
 // POST create user (Admin only)
 router.post('/', auth, (req, res) => {
   upload.single('profile_picture')(req, res, function (err) {
