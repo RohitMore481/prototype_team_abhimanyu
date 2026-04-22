@@ -952,7 +952,7 @@ export default function ProjectsPage() {
                 <ProjectDetailsView
                     project={viewProject}
                     onClose={() => setViewProject(null)}
-                    onSave={fetchAll}
+                    onSave={() => { fetchAll(); handleViewProject(viewProject.id); }}
                     getImageUrl={getImageUrl}
                     allWorkers={workers}
                     allSupervisors={supervisors}

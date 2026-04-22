@@ -366,11 +366,20 @@ router.delete('/:id', auth, (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Only admins can delete projects.' });
     try {
         const projectId = req.params.id;
-        db.prepare('UPDATE user_project_history SET unassigned_at = CURRENT_TIMESTAMP WHERE project_id = ? AND unassigned_at IS NULL').run(projectId);
-        db.prepare('UPDATE machine_project_history SET unassigned_at = CURRENT_TIMESTAMP WHERE project_id = ? AND unassigned_at IS NULL').run(projectId);
-        db.prepare('UPDATE users SET project_id = NULL WHERE project_id = ?').run(projectId);
-        db.prepare('UPDATE machines SET project_id = NULL, status = "idle" WHERE project_id = ?').run(projectId);
-        db.prepare('DELETE FROM projects WHERE id = ?').run(projectId);
+
+        const project = db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId);
+        if (!project) return res.status(404).json({ error: 'Project not found' });
+
+        const deleteProj = db.transaction(() => {
+            db.prepare('DELETE FROM user_project_history WHERE project_id = ?').run(projectId);
+            db.prepare('DELETE FROM machine_project_history WHERE project_id = ?').run(projectId);
+            db.prepare('UPDATE users SET project_id = NULL WHERE project_id = ?').run(projectId);
+            db.prepare('UPDATE machines SET project_id = NULL, status = \'idle\' WHERE project_id = ?').run(projectId);
+            db.prepare('UPDATE tasks SET project_id = NULL WHERE project_id = ?').run(projectId);
+            db.prepare('DELETE FROM projects WHERE id = ?').run(projectId);
+        });
+
+        deleteProj();
         res.json({ success: true });
     } catch (err) {
         console.error('API Error:', err);
@@ -409,7 +418,7 @@ router.post('/:id/unassign-machine', auth, (req, res) => {
         const { machineId } = req.body;
         if (!machineId) return res.status(400).json({ error: 'Machine ID is required' });
 
-        db.prepare('UPDATE machines SET project_id = NULL, status = "idle" WHERE id = ? AND project_id = ?').run(machineId, projectId);
+        db.prepare('UPDATE machines SET project_id = NULL, status = \'idle\' WHERE id = ? AND project_id = ?').run(machineId, projectId);
         recordMachineUnassignment(machineId, projectId);
 
         res.json({ success: true });
@@ -449,9 +458,13 @@ router.post('/:id/assign-machine', auth, (req, res) => {
     try {
         const projectId = req.params.id;
         const { machineId } = req.body;
+
         if (!machineId) return res.status(400).json({ error: 'Machine ID is required' });
 
-        db.prepare('UPDATE machines SET project_id = ?, status = "busy" WHERE id = ?').run(projectId, machineId);
+        const project = db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId);
+        if (!project) return res.status(404).json({ error: 'Project not found' });
+
+        db.prepare('UPDATE machines SET project_id = ?, status = \'occupied\' WHERE id = ?').run(projectId, machineId);
         recordMachineAssignment(machineId, projectId);
 
         res.json({ success: true });
