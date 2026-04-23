@@ -85,46 +85,58 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [workingProject, setWorkingProject] = useState(() => localStorage.getItem('admin_working_project') || '');
   const { socket } = useSocket();
   const { isDark } = useTheme();
   const { user, getImageUrl } = useAuth();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      api.get('/projects').then(res => setProjects(res.data)).catch(() => { });
+    }
+  }, [user?.role]);
+
   const fetchSummary = useCallback(async () => {
     try {
-      const res = await api.get('/analytics/summary');
+      const url = workingProject ? `/analytics/summary?projectId=${workingProject}` : '/analytics/summary';
+      const res = await api.get(url);
       setSummary(res.data);
     } catch { }
     setLoading(false);
-  }, []);
+  }, [workingProject]);
 
-  const fetchWeekly = async () => {
+  const fetchWeekly = useCallback(async () => {
     try {
-      const res = await api.get('/reports/weekly');
+      const url = workingProject ? `/reports/weekly?projectId=${workingProject}` : '/reports/weekly';
+      const res = await api.get(url);
       setWeeklyData(res.data);
     } catch { }
-  };
+  }, [workingProject]);
 
-  const fetchMonthly = async () => {
+  const fetchMonthly = useCallback(async () => {
     try {
-      const res = await api.get('/reports/monthly');
+      const url = workingProject ? `/reports/monthly?projectId=${workingProject}` : '/reports/monthly';
+      const res = await api.get(url);
       setMonthlyData(res.data);
     } catch { }
-  };
+  }, [workingProject]);
 
-  const fetchWorkers = async () => {
+  const fetchWorkers = useCallback(async () => {
     try {
-      const res = await api.get('/reports/workers');
+      const url = workingProject ? `/reports/workers?projectId=${workingProject}` : '/reports/workers';
+      const res = await api.get(url);
       setWorkerData(res.data);
     } catch { }
-  };
+  }, [workingProject]);
 
   useEffect(() => {
     if (activeTab === 'overview') fetchSummary();
     if (activeTab === 'weekly') fetchWeekly();
     if (activeTab === 'monthly') fetchMonthly();
     if (activeTab === 'workers') fetchWorkers();
-  }, [activeTab, fetchSummary]);
+  }, [activeTab, fetchSummary, fetchWeekly, fetchMonthly, fetchWorkers]);
 
   useEffect(() => {
     if (!socket) return;
@@ -146,7 +158,7 @@ export default function AdminDashboard() {
       socket.off('machine:status', refresh);
       socket.off('user:status', refresh);
     };
-  }, [socket, activeTab, fetchSummary]);
+  }, [socket, activeTab, fetchSummary, fetchWeekly, fetchMonthly, fetchWorkers]);
 
   const tooltipStyle = {
     background: isDark ? '#18181b' : '#ffffff',
@@ -300,7 +312,7 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="space-y-6">
-            <Leaderboard />
+            <Leaderboard workingProject={workingProject} />
           </div>
         </div>
       </div>
@@ -475,24 +487,46 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex items-center gap-1.5 p-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl w-max shadow-sm">
-        {[
-          { id: 'overview', icon: Activity, label: 'Overview' },
-          { id: 'weekly', icon: Clock, label: 'Weekly' },
-          { id: 'monthly', icon: TrendingUp, label: 'Monthly' },
-          { id: 'workers', icon: Users, label: 'Workers' },
-        ].map(t => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all rounded-lg ${activeTab === t.id
-              ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 shadow-sm border border-zinc-200 dark:border-zinc-700/50'
-              : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 border border-transparent'
-              }`}
-          >
-            <t.icon size={16} /> {t.label}
-          </button>
-        ))}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-1.5 p-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl w-max shadow-sm">
+          {[
+            { id: 'overview', icon: Activity, label: 'Overview' },
+            { id: 'weekly', icon: Clock, label: 'Weekly' },
+            { id: 'monthly', icon: TrendingUp, label: 'Monthly' },
+            { id: 'workers', icon: Users, label: 'Workers' },
+          ].map(t => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all rounded-lg ${activeTab === t.id
+                ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 shadow-sm border border-zinc-200 dark:border-zinc-700/50'
+                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 border border-transparent'
+                }`}
+            >
+              <t.icon size={16} /> {t.label}
+            </button>
+          ))}
+        </div>
+
+        {user?.role === 'admin' && (
+          <div className="w-full sm:w-auto relative">
+            <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1 ml-1">Working Project</h4>
+            <select
+              className="select w-full sm:w-64 !py-2 !h-auto text-sm bg-white dark:bg-zinc-900 shadow-sm transition-all hover:border-zinc-400 focus:border-blue-500"
+              value={workingProject}
+              onChange={e => {
+                const val = e.target.value;
+                setWorkingProject(val);
+                localStorage.setItem('admin_working_project', val);
+              }}
+            >
+              <option value="">Global System Scope</option>
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {activeTab === 'overview' && renderOverview()}

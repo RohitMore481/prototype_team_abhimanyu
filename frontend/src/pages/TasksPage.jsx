@@ -7,7 +7,7 @@ import { useLanguage } from '../context/LanguageContext';
 import toast from 'react-hot-toast';
 import {
   Plus, Search, Edit2, Trash2, User, Cpu,
-  X, Loader2, AlertCircle, Clock, ClipboardList, Briefcase
+  X, Loader2, AlertCircle, AlertTriangle, Clock, ClipboardList, Briefcase
 } from 'lucide-react';
 
 const STATUS_ORDER = ['not_started', 'in_progress', 'paused', 'completed', 'delayed'];
@@ -182,7 +182,7 @@ function TaskFormModal({ onClose, onSave, editTask, workers, machines }) {
             </div>
           </div>
           <div className="flex gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800 mt-4">
-            <button type="submit" className="btn-primary flex-1 justify-center py-2.5" disabled={loading}>
+            <button type="submit" className="btn-primary flex-1 justify-center py-2.5" disabled={loading || !form.project_id || !form.machine_id} title={(!form.project_id || !form.machine_id) ? "Please assign a project and a machine to continue" : ""}>
               {loading ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
               {editTask ? t('done') : t('new_task')}
             </button>
@@ -306,7 +306,7 @@ export default function TasksPage() {
   const [filterStatus, setFilterStatus] = useState(searchParams.get('filter') || '');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterWorker, setFilterWorker] = useState(searchParams.get('workerId') || '');
-  const [filterProject, setFilterProject] = useState('');
+  const [filterProject, setFilterProject] = useState(() => user?.role === 'admin' ? (localStorage.getItem('admin_working_project') || '') : '');
 
   const fetchAll = useCallback(async () => {
     try {
@@ -382,7 +382,11 @@ export default function TasksPage() {
             <option value="medium">{t('medium')}</option>
             <option value="low">{t('low')}</option>
           </select>
-          <select className="select w-auto" value={filterProject} onChange={e => setFilterProject(e.target.value)}>
+          <select className="select w-auto" value={filterProject} onChange={e => {
+            const val = e.target.value;
+            setFilterProject(val);
+            if (user?.role === 'admin') localStorage.setItem('admin_working_project', val);
+          }}>
             <option value="">All Projects</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>

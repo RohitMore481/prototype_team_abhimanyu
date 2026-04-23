@@ -51,7 +51,7 @@ router.post('/login', (req, res) => {
     { expiresIn: '24h' }
   );
 
-  res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, profile_picture: user.profile_picture, project_id: user.project_id } });
+  res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, profile_picture: user.profile_picture, project_id: user.project_id, is_live: user.is_live, shift_start_time: user.shift_start_time } });
 });
 
 // POST /api/auth/register (Admin only in production, open for seeding)

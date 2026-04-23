@@ -59,7 +59,7 @@ export default function CreditWidget() {
     const { summary, recentLogs } = data;
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 relative">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 relative items-start">
             {/* Popups Layer */}
             <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-50 pointer-events-none">
                 {popups.map(p => (
@@ -102,8 +102,8 @@ export default function CreditWidget() {
                     <span className="text-[10px] font-black text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">TODAY: +{summary.today_credits}</span>
                 </div>
                 <div className="space-y-3">
-                    <div className="p-5 flex flex-col items-center justify-center min-h-[160px]">
-                        <div className="flex items-center gap-10 mb-6">
+                    <div className="p-4 flex flex-col items-center justify-center">
+                        <div className="flex items-center gap-10 mb-4">
                             <div className="text-center">
                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-1">Today</p>
                                 <p className="text-4xl font-black text-blue-600 dark:text-blue-400">+{summary.today_credits || 0}</p>

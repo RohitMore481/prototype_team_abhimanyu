@@ -6,7 +6,7 @@ import { useSocket } from '../context/SocketContext';
 import toast from 'react-hot-toast';
 import { Plus, Edit2, Trash2, X, Loader2, Clock, Cpu, RefreshCw, Briefcase } from 'lucide-react';
 
-function MachineCard({ machine, canEdit, onEdit, onDelete }) {
+function MachineCard({ machine, canEdit, canDelete, onEdit, onDelete }) {
   const { user } = useAuth();
   const statusCls = {
     running: 'border-l-4 border-l-emerald-500 border-t-zinc-200 border-r-zinc-200 border-b-zinc-200 dark:border-t-zinc-800 dark:border-r-zinc-800 dark:border-b-zinc-800 bg-white dark:bg-zinc-900',
@@ -49,9 +49,11 @@ function MachineCard({ machine, canEdit, onEdit, onDelete }) {
             <button onClick={() => onEdit(machine)} className="p-1.5 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors">
               <Edit2 size={14} />
             </button>
-            <button onClick={() => onDelete(machine.id)} className="p-1.5 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors">
-              <Trash2 size={14} />
-            </button>
+            {canDelete && (
+              <button onClick={() => onDelete(machine.id)} className="p-1.5 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors">
+                <Trash2 size={14} />
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -209,6 +211,8 @@ export default function MachinesPage() {
   };
 
   const canEdit = user?.role !== 'worker';
+  const canAdd = user?.role === 'admin';
+  const canDelete = user?.role === 'admin';
 
   const filteredMachines = filterStatus
     ? machines.filter(m => m.status === filterStatus)
@@ -230,7 +234,7 @@ export default function MachinesPage() {
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400 mt-1">{machines.length} machines registered in the factory</p>
         </div>
-        {canEdit && (
+        {canAdd && (
           <button id="add-machine-btn" className="btn-primary" onClick={() => { setEditMachine(null); setShowModal(true); }}>
             <Plus size={18} /> Add Machine
           </button>
@@ -265,6 +269,7 @@ export default function MachinesPage() {
                       key={m.id}
                       machine={m}
                       canEdit={canEdit}
+                      canDelete={canDelete}
                       onEdit={m => { setEditMachine(m); setShowModal(true); }}
                       onDelete={deleteMachine}
                     />

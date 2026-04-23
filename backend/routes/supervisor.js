@@ -12,21 +12,42 @@ router.get('/alerts', auth, (req, res) => {
     const { status, workerId } = req.query;
 
     try {
-        let query = `SELECT * FROM alerts WHERE 1=1`;
+        let projectId = req.user.project_id;
+        let isScoped = false;
+
+        if (req.user.role === 'supervisor') {
+            const user = db.prepare('SELECT project_id FROM users WHERE id = ?').get(req.user.id);
+            projectId = user ? user.project_id : null;
+            isScoped = true;
+        } else if (req.user.role === 'admin' && req.query.projectId) {
+            projectId = req.query.projectId;
+            isScoped = true;
+        }
+
+        if (isScoped && !projectId) {
+            return res.json([]);
+        }
+
+        let query = `SELECT a.* FROM alerts a JOIN users u ON a.worker_id = u.id WHERE 1=1`;
         const params = [];
 
+        if (isScoped) {
+            query += ` AND u.project_id = ?`;
+            params.push(projectId);
+        }
+
         if (status === 'active') {
-            query += ` AND status = 'unread'`;
+            query += ` AND a.status = 'unread'`;
         } else if (status === 'resolved') {
-            query += ` AND status = 'reviewed'`;
+            query += ` AND a.status = 'reviewed'`;
         }
 
         if (workerId) {
-            query += ` AND l.user_id = ?`;
+            query += ` AND a.worker_id = ?`;
             params.push(workerId);
         }
 
-        query += ` ORDER BY timestamp DESC LIMIT 50`;
+        query += ` ORDER BY a.timestamp DESC LIMIT 50`;
 
         const alerts = db.prepare(query).all(...params);
         res.json(alerts);

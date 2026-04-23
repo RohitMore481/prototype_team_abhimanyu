@@ -84,7 +84,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id),
-    type TEXT NOT NULL CHECK(type IN ('break', 'breakdown')),
+    type TEXT NOT NULL CHECK(type IN ('break', 'breakdown', 'pause')),
     status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
     data TEXT, -- JSON string for additional context (e.g., machine_id, task_id)
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

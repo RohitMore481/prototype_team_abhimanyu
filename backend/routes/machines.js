@@ -31,9 +31,9 @@ router.get('/:id', auth, (req, res) => {
   res.json(machine);
 });
 
-// POST create machine (Admin/Supervisor)
+// POST create machine (Admin)
 router.post('/', auth, (req, res) => {
-  if (req.user.role === 'worker') return res.status(403).json({ error: 'Forbidden' });
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden. Only administrators can add machines.' });
   const { name, type, project_id } = req.body;
   if (!name || !type) return res.status(400).json({ error: 'Name and type required.' });
   const result = db.prepare('INSERT INTO machines (name, type, status, idle_since, project_id) VALUES (?, ?, ?, ?, ?)').run(name, type, 'idle', new Date().toISOString(), project_id || null);

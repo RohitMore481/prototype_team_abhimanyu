@@ -145,6 +145,42 @@ router.put('/:id', auth, (req, res) => {
                         io.emit('machine:status', machine);
                     }
                 }
+            } else if (request.type === 'pause') {
+                const data = JSON.parse(request.data || '{}');
+                const taskId = data.task_id;
+                if (taskId) {
+                    const task = db.prepare('SELECT assigned_worker_id, machine_id, last_action_at, total_elapsed_seconds FROM tasks WHERE id = ?').get(taskId);
+                    if (task) {
+                        const elapsedSinceLastStart = task.last_action_at ? Math.floor((new Date() - new Date(task.last_action_at)) / 1000) : 0;
+                        db.prepare('UPDATE tasks SET status = ?, total_elapsed_seconds = ?, last_action_at = NULL WHERE id = ?').run('paused', (task.total_elapsed_seconds || 0) + elapsedSinceLastStart, taskId);
+                        db.prepare('INSERT INTO task_logs (task_id, action, note, performed_by) VALUES (?, ?, ?, ?)').run(taskId, 'paused', 'Pause request approved by supervisor', req.user.id);
+
+                        if (task.assigned_worker_id) {
+                            db.prepare("UPDATE users SET status = 'paused', last_idle_at = CURRENT_TIMESTAMP WHERE id = ?").run(task.assigned_worker_id);
+                        }
+
+                        if (task.machine_id) {
+                            if (data.reason === 'Machine issue') {
+                                db.prepare("UPDATE machines SET status = 'breakdown', idle_since = ? WHERE id = ?").run(now, task.machine_id);
+                            } else {
+                                const otherActive = db.prepare("SELECT COUNT(*) as c FROM tasks WHERE machine_id = ? AND id != ? AND status = 'in_progress'").get(task.machine_id, taskId);
+                                if (otherActive.c === 0) {
+                                    db.prepare("UPDATE machines SET status = 'idle', idle_since = ? WHERE id = ?").run(now, task.machine_id);
+                                }
+                            }
+                        }
+
+                        if (io) {
+                            const updatedTask = db.prepare(`SELECT t.*, u.name as worker_name, m.name as machine_name FROM tasks t LEFT JOIN users u ON t.assigned_worker_id = u.id LEFT JOIN machines m ON t.machine_id = m.id WHERE t.id = ?`).get(taskId);
+                            io.emit('task:updated', updatedTask);
+                            if (task.assigned_worker_id) io.emit('user:status', { userId: task.assigned_worker_id, status: 'paused', last_idle_at: new Date().toISOString() });
+                            if (task.machine_id) {
+                                const machine = db.prepare('SELECT * FROM machines WHERE id = ?').get(task.machine_id);
+                                io.emit('machine:status', machine);
+                            }
+                        }
+                    }
+                }
             }
         }
     });

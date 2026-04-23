@@ -12,9 +12,22 @@ export default function AnalyticsPage() {
   const [downtime, setDowntime] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [projects, setProjects] = useState([]);
+  const [filterProject, setFilterProject] = useState(() => localStorage.getItem('admin_working_project') || '');
+
+  // Fetch projects list once
+  useEffect(() => {
+    api.get('/projects').then(res => setProjects(res.data)).catch(() => { });
+  }, []);
+
   const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
-      const [sRes, dRes] = await Promise.all([api.get('/analytics/summary'), api.get('/analytics/downtime')]);
+      const query = filterProject ? `?projectId=${filterProject}` : '';
+      const [sRes, dRes] = await Promise.all([
+        api.get(`/analytics/summary${query}`),
+        api.get(`/analytics/downtime${query}`)
+      ]);
       setData(sRes.data);
       setDowntime(dRes.data);
     } catch (err) {
@@ -22,7 +35,7 @@ export default function AnalyticsPage() {
       toast.error('Failed to load analytics data');
     }
     setLoading(false);
-  }, []);
+  }, [filterProject]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -49,11 +62,32 @@ export default function AnalyticsPage() {
     count: p.count,
   }));
 
+  const handleFilterChange = (val) => {
+    setFilterProject(val);
+    localStorage.setItem('admin_working_project', val);
+  };
+
   return (
     <div className="space-y-6 animate-slide-in">
-      <div>
-        <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-50 tracking-tight">Analytics & Reports</h1>
-        <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mt-1">Operational efficiency insights</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-50 tracking-tight">Analytics & Reports</h1>
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mt-1">Operational efficiency insights</p>
+        </div>
+
+        {/* Project Selector for Admin Isolation */}
+        <select
+          className="select bg-white dark:bg-zinc-950 font-bold text-sm min-w-[240px] shadow-sm border border-zinc-200 dark:border-zinc-800"
+          value={filterProject}
+          onChange={e => handleFilterChange(e.target.value)}
+        >
+          <option value="">Global (All Active Projects)</option>
+          {projects.map(p => (
+            <option key={p.id} value={p.id}>
+              {p.name} {p.status === 'completed' ? '(Completed)' : ''}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Summary KPIs */}

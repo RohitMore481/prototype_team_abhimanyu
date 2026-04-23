@@ -75,7 +75,7 @@ router.get('/my-history', auth, (req, res) => {
         let query;
         let params = [req.user.id];
 
-        if (req.user.role === 'admin' || req.user.role === 'supervisor') {
+        if (req.user.role === 'admin') {
             query = `
                 SELECT 
                     p.id as project_id, 
@@ -89,17 +89,29 @@ router.get('/my-history', auth, (req, res) => {
                 ORDER BY p.created_at DESC
             `;
             params = [];
-        } else {
+        } else if (req.user.role === 'supervisor') {
             query = `
                 SELECT h.*, p.name as project_name, p.description as project_description,
-                    (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.assigned_worker_id = h.user_id AND t.status = 'completed') as completedTasks
+                    (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.status = 'completed') as completedTasks,
+                    (SELECT SUM(COALESCE(credit_value, 1)) FROM tasks t WHERE t.project_id = p.id AND t.status = 'completed') as collectedCredits
                 FROM user_project_history h
                 JOIN projects p ON h.project_id = p.id
                 WHERE h.user_id = ?
                 ORDER BY h.assigned_at DESC
             `;
+            params = [req.user.id];
+        } else {
+            query = `
+                SELECT h.*, p.name as project_name, p.description as project_description,
+                    (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.assigned_worker_id = h.user_id AND t.status = 'completed') as completedTasks,
+                    (SELECT SUM(COALESCE(credit_value, 1)) FROM tasks t WHERE t.project_id = p.id AND t.assigned_worker_id = h.user_id AND t.status = 'completed') as collectedCredits
+                FROM user_project_history h
+                JOIN projects p ON h.project_id = p.id
+                WHERE h.user_id = ?
+                ORDER BY h.assigned_at DESC
+            `;
+            params = [req.user.id];
         }
-
         const history = db.prepare(query).all(...params);
         res.json(history);
     } catch (err) {
@@ -130,8 +142,32 @@ router.get('/:id', auth, (req, res) => {
         const workers = users.filter(u => u.role === 'worker');
         const supervisors = users.filter(u => u.role === 'supervisor');
 
-        const machines = db.prepare('SELECT id, name, type, status FROM machines WHERE project_id = ?').all(project.id);
-        const tasks = db.prepare('SELECT id, title, status, priority, started_at, completed_at, expected_minutes FROM tasks WHERE project_id = ?').all(project.id);
+        let machines = db.prepare('SELECT id, name, type, status FROM machines WHERE project_id = ?').all(project.id);
+        let tasks = db.prepare('SELECT id, title, status, priority, started_at, completed_at, expected_minutes, assigned_worker_id, credit_value FROM tasks WHERE project_id = ?').all(project.id);
+
+        let detailedTasks = db.prepare(`
+            SELECT t.*, u.name as worker_name 
+            FROM tasks t 
+            LEFT JOIN users u ON t.assigned_worker_id = u.id 
+            WHERE t.project_id = ?
+        `).all(project.id);
+
+        let taskLogs = db.prepare(`
+            SELECT tl.*, u.name as user_name, t.title as task_title
+            FROM task_logs tl
+            JOIN tasks t ON tl.task_id = t.id
+            LEFT JOIN users u ON tl.performed_by = u.id
+            WHERE t.project_id = ?
+            ORDER BY tl.timestamp DESC
+        `).all(project.id);
+
+        // Scope to worker
+        if (req.user.role === 'worker') {
+            tasks = tasks.filter(t => t.assigned_worker_id === req.user.id);
+            detailedTasks = detailedTasks.filter(t => t.assigned_worker_id === req.user.id);
+            taskLogs = taskLogs.filter(l => l.performed_by === req.user.id);
+            machines = []; // Workers don't need machine tracking details here
+        }
 
         // Fetch user history for the project
         const userHistory = db.prepare(`
@@ -183,6 +219,8 @@ router.get('/:id', auth, (req, res) => {
             supervisors,
             machines,
             tasks,
+            detailedTasks,
+            taskLogs,
             userHistory,
             machineHistory,
             stats
@@ -329,6 +367,11 @@ router.post('/:id/complete', auth, (req, res) => {
 
     const projectId = req.params.id;
     try {
+        const incompleteTasks = db.prepare("SELECT COUNT(*) as count FROM tasks WHERE project_id = ? AND status != 'completed'").get(projectId);
+        if (incompleteTasks.count > 0) {
+            return res.status(400).json({ error: 'Cannot complete project. All assigned tasks must be completed first.' });
+        }
+
         const completeProj = db.transaction(() => {
             // Update project status
             db.prepare("UPDATE projects SET status = 'completed' WHERE id = ?").run(projectId);

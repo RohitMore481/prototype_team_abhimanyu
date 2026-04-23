@@ -234,8 +234,13 @@ export default function UsersPage() {
 
   useEffect(() => {
     if (!socket) return;
-    const handleStatus = ({ userId, status, is_on_break }) => {
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, status, is_on_break: is_on_break !== undefined ? is_on_break : u.is_on_break } : u));
+    const handleStatus = ({ userId, status, is_on_break, is_live }) => {
+      setUsers(prev => prev.map(u => u.id === userId ? {
+        ...u,
+        ...(status !== undefined && { status }),
+        ...(is_on_break !== undefined && { is_on_break }),
+        ...(is_live !== undefined && { is_live })
+      } : u));
     };
     socket.on('user:status', handleStatus);
     return () => socket.off('user:status', handleStatus);
@@ -290,7 +295,7 @@ export default function UsersPage() {
                       <Icon size={22} className="opacity-80" />
                     )}
                     {u.role === 'worker' && (
-                      <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-zinc-900 ${u.status === 'busy' ? 'bg-blue-500' : u.status === 'paused' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                      <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-zinc-900 ${u.is_live ? (u.status === 'busy' ? 'bg-blue-500' : u.status === 'paused' ? 'bg-amber-500' : 'bg-emerald-500') : 'bg-red-500'}`} />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -337,11 +342,14 @@ export default function UsersPage() {
                     <div className="flex items-center justify-between gap-3 pt-2">
                       {u.role === 'worker' && (
                         <div className="flex gap-2">
+                          <span className={`inline-flex items-center gap-1 text-[10px] uppercase font-bold px-2 py-1 rounded-md border text-white shadow-sm ${u.is_live ? 'bg-emerald-500 border-emerald-600' : 'bg-red-500 border-red-600'}`}>
+                            {u.is_live ? 'ONLINE' : 'OFFLINE'}
+                          </span>
                           <span className={`inline-flex items-center gap-1 text-[10px] uppercase font-bold px-2 py-1 rounded-md border ${STATUS_COLORS[u.status || 'idle']}`}>
                             <Circle size={6} fill="currentColor" /> {u.status || 'idle'}
                           </span>
                           {u.is_on_break === 1 && (
-                            <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold px-2 py-1 rounded-md border bg-amber-500 text-white border-amber-500 dark:bg-amber-600 dark:border-amber-600">
+                            <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold px-2 py-1 rounded-md border bg-amber-500 text-white border-amber-600 shadow-sm">
                               BREAK
                             </span>
                           )}

@@ -242,28 +242,14 @@ function TaskCard({ task, onAction, isPool, onClaim, hideActions, isOnBreak }) {
   const overtime = task.deadline_at && new Date() > new Date(task.deadline_at);
 
   const handleAction = async (action, pauseReason, note) => {
-    if (action === 'pause' && pauseReason === 'Machine issue') {
-      try {
-        setLoading(true);
-        await api.post('/requests', {
-          type: 'breakdown',
-          data: { task_id: task.id, machine_id: task.machine_id, note }
-        });
-        toast.success('Machine breakdown request sent to supervisor');
-        onAction();
-        return;
-      } catch (err) {
-        toast.error(err.response?.data?.error || 'Failed to report breakdown');
-        return;
-      } finally {
-        setLoading(false);
-      }
+    if (action === 'pause') {
+      action = 'pause_request';
     }
 
     setLoading(true);
     try {
       await api.put(`/tasks/${task.id}`, { action, pause_reason: pauseReason, note });
-      toast.success(action === 'start' ? t('active') : action === 'pause' ? t('pending') : t('done'));
+      toast.success(action === 'start' ? t('active') : action === 'pause_request' ? 'Pause request submitted' : t('done'));
       onAction();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Action failed');
@@ -734,8 +720,8 @@ export default function WorkerDashboard() {
       )}
 
       {!isLive && !loading && (
-        <div className="absolute inset-x-0 bottom-0 top-[200px] z-[45] bg-white/70 dark:bg-black/60 backdrop-blur-md flex flex-col items-center justify-center animate-fade-in border-t border-zinc-200 dark:border-zinc-800">
-          <div className="bg-zinc-900 border-none card flex flex-col items-center p-8 max-w-sm w-full mx-4 shadow-2xl text-center">
+        <div className="absolute inset-0 z-[45] bg-white/70 dark:bg-black/60 backdrop-blur-md flex flex-col items-center justify-center animate-fade-in">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl flex flex-col items-center p-8 max-w-sm w-full mx-4 shadow-2xl text-center">
             <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mb-6 border border-zinc-700">
               <User size={32} className="text-zinc-500" />
             </div>

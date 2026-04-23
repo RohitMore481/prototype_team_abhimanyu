@@ -53,6 +53,8 @@ router.get('/', auth, (req, res) => {
     } else if (projectId) {
       conditions.push("t.project_id = ?");
       params.push(projectId);
+    } else {
+      conditions.push("t.project_id IN (SELECT id FROM projects WHERE status = 'active')");
     }
 
     if (req.query.workerId) {
@@ -260,6 +262,18 @@ router.put('/:id', auth, async (req, res) => {
     }
 
     switch (action) {
+      case 'pause_request':
+        if (req.user.role !== 'worker') return res.status(403).json({ error: 'Only workers can request a pause' });
+        if (!pause_reason) return res.status(400).json({ error: 'A valid reason is required to pause this task.' });
+
+        db.prepare("INSERT INTO requests (user_id, type, status, data) VALUES (?, 'pause', 'pending', ?)").run(
+          req.user.id, JSON.stringify({ task_id: taskId, title: task.title, reason: pause_reason, note: note })
+        );
+
+        const superIds = db.prepare("SELECT id FROM users WHERE role IN ('admin', 'supervisor')").all().map(r => r.id);
+        notifyAndEmit(req, superIds, `Task pause requested by ${req.user.name} for: ${pause_reason}`, 'warning', 'request:new', {});
+        return res.json({ success: true, message: 'Pause request submitted. Waiting for approval.' });
+
       case 'start':
         if (task.status !== 'not_started' && task.status !== 'paused') {
           return res.status(400).json({ error: 'Cannot start task in current state.' });

@@ -47,7 +47,7 @@ const upload = multer({
 router.get('/', auth, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   try {
-    const users = db.prepare('SELECT id, name, email, role, status, is_on_break, profile_picture, project_id, created_at FROM users').all();
+    const users = db.prepare('SELECT id, name, email, role, status, is_on_break, is_live, profile_picture, project_id, created_at FROM users').all();
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch users: ' + err.message });
@@ -56,7 +56,7 @@ router.get('/', auth, (req, res) => {
 
 // GET workers only
 router.get('/workers', auth, (req, res) => {
-  let query = "SELECT id, name, email, status, is_on_break, profile_picture, project_id FROM users WHERE role = 'worker'";
+  let query = "SELECT id, name, email, status, is_on_break, is_live, profile_picture, project_id FROM users WHERE role = 'worker'";
   let projectId = req.user.project_id;
   if (req.user.role === 'supervisor' || req.user.role === 'worker') {
     const user = db.prepare('SELECT project_id FROM users WHERE id = ?').get(req.user.id);
@@ -76,7 +76,7 @@ router.get('/workers', auth, (req, res) => {
 
 // GET supervisors only
 router.get('/supervisors', auth, (req, res) => {
-  let query = "SELECT id, name, email, status, profile_picture, project_id FROM users WHERE role = 'supervisor'";
+  let query = "SELECT id, name, email, status, is_live, profile_picture, project_id FROM users WHERE role = 'supervisor'";
   let projectId = req.user.project_id;
   if (req.user.role === 'supervisor' || req.user.role === 'worker') {
     const user = db.prepare('SELECT project_id FROM users WHERE id = ?').get(req.user.id);
@@ -246,6 +246,10 @@ router.post('/go-live', auth, (req, res) => {
 
   try {
     db.prepare(`UPDATE users SET is_live = 1, shift_start_time = ? WHERE id = ?`).run(startTime || new Date().toISOString(), userId);
+
+    const io = req.app.get('io');
+    if (io) io.emit('user:status', { userId: userId, is_live: 1 });
+
     res.json({ success: true, message: 'Shift started' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to go live: ' + err.message });
@@ -272,6 +276,21 @@ router.post('/go-offline', auth, (req, res) => {
     `).run(userId, start, end, pendingTasks || 0, delayedTasks || 0, reason || null, note || null);
 
     db.prepare(`UPDATE users SET is_live = 0, shift_start_time = NULL WHERE id = ?`).run(userId);
+
+    const io = req.app.get('io');
+    if (io) io.emit('user:status', { userId: userId, is_live: 0 });
+
+    const activeTasks = db.prepare(`SELECT id, machine_id FROM tasks WHERE assigned_worker_id = ? AND status = 'in_progress'`).all(userId);
+    for (const t of activeTasks) {
+      db.prepare(`UPDATE tasks SET status = 'paused' WHERE id = ?`).run(t.id);
+      db.prepare(`UPDATE machines SET status = 'idle', idle_since = ? WHERE id = ?`).run(end, t.machine_id);
+      db.prepare(`INSERT INTO task_logs (task_id, action, note, performed_by, timestamp) VALUES (?, 'paused', 'Auto-paused due to shift termination', ?, ?)`).run(t.id, userId, end);
+      if (io) {
+        io.emit('task:updated', { id: t.id, status: 'paused', machine_id: t.machine_id, assigned_worker_id: userId });
+        const machine = db.prepare('SELECT * FROM machines WHERE id = ?').get(t.machine_id);
+        if (machine) io.emit('machine:status', machine);
+      }
+    }
 
     if (role === 'worker' && (pendingTasks > 0 || delayedTasks > 0)) {
       db.prepare(`

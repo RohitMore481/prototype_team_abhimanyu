@@ -253,7 +253,7 @@ export default function Layout({ children }) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto relative">
           <div className="max-w-7xl mx-auto w-full p-4 lg:p-8">
             {children}
           </div>

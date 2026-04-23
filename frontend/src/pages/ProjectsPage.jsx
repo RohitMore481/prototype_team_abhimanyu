@@ -5,7 +5,7 @@ import { useLanguage } from '../context/LanguageContext';
 import toast from 'react-hot-toast';
 import {
     Plus, Search, Edit2, Trash2, User, Cpu, Activity,
-    X, Loader2, AlertCircle, Clock, Briefcase, Users, Layout, History, CheckCircle, ChevronRight
+    X, Loader2, AlertCircle, Clock, Briefcase, Users, Layout, History, CheckCircle, ChevronRight, Star
 } from 'lucide-react';
 
 function TeamAvatar({ user, getImageUrl }) {
@@ -134,6 +134,7 @@ function ProjectDetailsView({ project, onClose, onSave, getImageUrl, allWorkers,
     const { user } = useAuth();
     const [addingType, setAddingType] = useState(null); // 'worker', 'supervisor', 'machine'
     const [selectedResourceId, setSelectedResourceId] = useState(null); // For history drill-down
+    const [showActivity, setShowActivity] = useState(false);
     const isAdmin = user?.role === 'admin';
     const isSupervisor = user?.role === 'supervisor';
 
@@ -373,23 +374,29 @@ function ProjectDetailsView({ project, onClose, onSave, getImageUrl, allWorkers,
                                                     </div>
                                                 </div>
                                             </div>
-                                            {(isAdmin || isSupervisor) && (
-                                                <button
-                                                    onClick={async (e) => {
-                                                        e.stopPropagation();
-                                                        if (!confirm(`Remove ${w.name} from project?`)) return;
-                                                        try {
-                                                            await api.post(`/projects/${project.id}/unassign-user`, { userId: w.id });
-                                                            toast.success(`${w.name} removed`);
-                                                            onSave(); // Refresh
-                                                        } catch { toast.error('Failed to remove'); }
-                                                    }}
-                                                    className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
-                                                    title="Remove Worker"
-                                                >
-                                                    <X size={14} />
-                                                </button>
-                                            )}
+                                            <div className="flex items-center gap-2">
+                                                <div className="text-right mr-3">
+                                                    <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-tight">Project Credits</p>
+                                                    <p className="text-sm font-black text-blue-500">{project.tasks?.filter(t => t.status === 'completed' && t.assigned_worker_id === w.id).reduce((s, t) => s + (t.credit_value || 1), 0)} pts</p>
+                                                </div>
+                                                {(isAdmin || isSupervisor) && (
+                                                    <button
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            if (!confirm(`Remove ${w.name} from project?`)) return;
+                                                            try {
+                                                                await api.post(`/projects/${project.id}/unassign-user`, { userId: w.id });
+                                                                toast.success(`${w.name} removed`);
+                                                                onSave(); // Refresh
+                                                            } catch { toast.error('Failed to remove'); }
+                                                        }}
+                                                        className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
+                                                        title="Remove Worker"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     ))
                                 ) : project.status === 'completed' ? (
@@ -406,7 +413,13 @@ function ProjectDetailsView({ project, onClose, onSave, getImageUrl, allWorkers,
                                                         <p className="text-[9px] text-zinc-500 uppercase tracking-widest">{w.periods.length} Assignment Period{w.periods.length > 1 ? 's' : ''}</p>
                                                     </div>
                                                 </div>
-                                                <ChevronRight size={14} className={`text-zinc-400 transition-transform ${selectedResourceId === w.id ? 'rotate-90' : ''}`} />
+                                                <div className="flex items-center gap-3">
+                                                    <div className="text-right">
+                                                        <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-tight">Earned</p>
+                                                        <p className="text-xs font-black text-blue-500">{project.tasks?.filter(t => t.status === 'completed' && t.assigned_worker_id === w.id).reduce((s, t) => s + (t.credit_value || 1), 0)} pts</p>
+                                                    </div>
+                                                    <ChevronRight size={14} className={`text-zinc-400 transition-transform ${selectedResourceId === w.id ? 'rotate-90' : ''}`} />
+                                                </div>
                                             </button>
 
                                             {selectedResourceId === w.id && (
@@ -591,6 +604,62 @@ function ProjectDetailsView({ project, onClose, onSave, getImageUrl, allWorkers,
                         </div>
                     </div>
 
+                    <div className="space-y-4">
+                        <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest border-b pb-2">Project Tasks</h4>
+                        {project.detailedTasks && project.detailedTasks.length > 0 ? (
+                            <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
+                                        <tr className="text-left text-zinc-500 dark:text-zinc-400 text-[11px] uppercase tracking-wider font-semibold">
+                                            <th className="px-5 py-3">Task</th>
+                                            <th className="px-5 py-3">Worker</th>
+                                            <th className="px-5 py-3 text-center">Credits</th>
+                                            <th className="px-5 py-3 text-center">Priority</th>
+                                            <th className="px-5 py-3 text-center">Status</th>
+                                            <th className="px-5 py-3 text-right">Expected</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50 bg-white dark:bg-zinc-950">
+                                        {project.detailedTasks.map(t => (
+                                            <tr key={t.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors">
+                                                <td className="px-5 py-4 font-semibold text-zinc-900 dark:text-zinc-100">{t.title}</td>
+                                                <td className="px-5 py-4">
+                                                    {t.worker_name ? (
+                                                        <div className="flex items-center gap-2 text-zinc-900 dark:text-zinc-300">
+                                                            <User size={14} className="text-zinc-400" />
+                                                            <span className="truncate max-w-[100px] font-medium">{t.worker_name}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 text-zinc-400 italic">
+                                                            <Clock size={14} />
+                                                            <span className="truncate max-w-[100px]">Unassigned</span>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-5 py-4 text-center font-black flex items-center justify-center gap-1 text-blue-600 dark:text-blue-400">
+                                                    +{t.credit_value || 1} <Star size={12} className="fill-blue-500 text-blue-500" />
+                                                </td>
+                                                <td className="px-5 py-4 text-center">
+                                                    <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-md ${t.priority === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : t.priority === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>
+                                                        {t.priority}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-4 text-center">
+                                                    <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-md ${t.status === 'completed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : t.status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : t.status === 'paused' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : t.status === 'delayed' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'}`}>
+                                                        {t.status.replace('_', ' ')}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-4 text-right text-zinc-500 font-medium">{t.expected_minutes || 0} min</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-zinc-500 italic text-center col-span-full py-4 border-2 border-dashed border-zinc-100 dark:border-zinc-800 rounded-xl">No tasks attached to project</p>
+                        )}
+                    </div>
+
                     {project.status === 'active' && (
                         <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800">
                             <button
@@ -613,48 +682,97 @@ function ProjectDetailsView({ project, onClose, onSave, getImageUrl, allWorkers,
                         </div>
                     )}
 
-                    {/* Timeline View */}
-                    <div className="mt-8 pt-8 border-t border-zinc-100 dark:border-zinc-800">
-                        <div className="flex items-center justify-between mb-6">
-                            <h4 className="text-sm font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-tighter flex items-center gap-2">
-                                <Activity size={16} className="text-blue-500" />
-                                Project Timeline
-                            </h4>
-                            <span className="text-[10px] font-bold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                                {timelineEvents.length} Events
-                            </span>
-                        </div>
+                    {/* Collapsible Timeline & Logs View */}
+                    <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                        <button
+                            onClick={() => setShowActivity(!showActivity)}
+                            className="w-full flex items-center justify-between p-4 bg-zinc-50/50 hover:bg-zinc-100 dark:bg-zinc-900/20 dark:hover:bg-zinc-900/60 rounded-xl transition-all border border-zinc-200 dark:border-zinc-800 group relative overflow-hidden"
+                        >
+                            <div className="absolute inset-0 bg-blue-500/5 dark:bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="flex flex-col items-start gap-1 relative z-10">
+                                <h4 className="text-sm font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-tighter flex items-center gap-2">
+                                    <Activity size={18} className="text-blue-500" />
+                                    Project Task Logs & Timeline
+                                </h4>
+                                <span className="text-[10px] uppercase font-bold text-zinc-400 flex items-center gap-1.5">
+                                    <Activity size={10} />
+                                    Click to {showActivity ? 'Collapse' : 'Expand'} Activity Feed
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-3 relative z-10">
+                                <span className="text-[10px] font-bold text-zinc-400 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 rounded-md shadow-sm group-hover:border-blue-200 dark:group-hover:border-blue-900/60 group-hover:text-blue-500 transition-colors">
+                                    {timelineEvents.length + (project.taskLogs?.length || 0)} Logs
+                                </span>
+                                <div className={`w-8 h-8 rounded-full bg-white dark:bg-zinc-950 flex items-center justify-center border border-zinc-200 dark:border-zinc-800 shadow-sm transition-transform duration-300 ${showActivity ? 'rotate-90 bg-blue-50 border-blue-200 dark:bg-blue-900/30' : 'group-hover:translate-x-1'}`}>
+                                    <ChevronRight size={16} className={`transition-colors ${showActivity ? 'text-blue-500' : 'text-zinc-400'}`} />
+                                </div>
+                            </div>
+                        </button>
 
-                        <div className="relative space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-zinc-100 dark:before:bg-zinc-800">
-                            {timelineEvents.map((event, idx) => (
-                                <div key={idx} className="relative pl-8 animate-in slide-in-from-top-2 fade-in duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
-                                    <div className={`absolute left-0 top-1 w-6 h-6 rounded-full border-4 border-white dark:border-zinc-900 flex items-center justify-center shadow-sm z-10 ${event.type === 'joined' ? 'bg-emerald-500' : 'bg-red-500'
-                                        }`}>
-                                        {event.type === 'joined' ? <Plus size={10} className="text-white" /> : <X size={10} className="text-white" />}
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                                                {event.resource}
-                                                <span className="ml-2 text-[10px] font-normal text-zinc-500">({event.role})</span>
-                                            </span>
-                                            <span className="text-[10px] font-medium text-zinc-400">
-                                                {new Date(event.time).toLocaleString()}
-                                            </span>
-                                        </div>
-                                        <p className="text-[10px] text-zinc-500 mt-1 uppercase tracking-tight font-black">
-                                            {event.type === 'joined' ? 'Assigned to Project' : 'Unassigned from Project'}
-                                        </p>
+                        {showActivity && (
+                            <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in slide-in-from-top-4 fade-in duration-300">
+                                <div>
+                                    <h4 className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-100 dark:border-zinc-800 pb-2 mb-4 flex items-center gap-2">
+                                        <History size={12} />
+                                        Resource Assignments
+                                    </h4>
+                                    <div className="relative space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-zinc-100 dark:before:bg-zinc-800">
+                                        {timelineEvents.map((event, idx) => (
+                                            <div key={idx} className="relative pl-8 animate-in slide-in-from-top-2 fade-in duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
+                                                <div className={`absolute left-0 top-1 w-6 h-6 rounded-full border-4 border-white dark:border-zinc-950 flex items-center justify-center shadow-sm z-10 ${event.type === 'joined' ? 'bg-emerald-500' : 'bg-red-500'}`}>
+                                                    {event.type === 'joined' ? <Plus size={10} className="text-white" /> : <X size={10} className="text-white" />}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                                                            {event.resource}
+                                                            <span className="ml-2 text-[10px] font-normal text-zinc-500">({event.role})</span>
+                                                        </span>
+                                                        <span className="text-[10px] font-medium text-zinc-400">
+                                                            {new Date(event.time).toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[10px] text-zinc-500 mt-1 uppercase tracking-tight font-black">
+                                                        {event.type === 'joined' ? 'Assigned to Project' : 'Unassigned from Project'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {timelineEvents.length === 0 && (
+                                            <div className="text-center py-8">
+                                                <Activity size={32} className="mx-auto text-zinc-200 dark:text-zinc-800 mb-2" />
+                                                <p className="text-xs text-zinc-400 italic">No timeline events recorded yet</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                            ))}
-                            {timelineEvents.length === 0 && (
-                                <div className="text-center py-8">
-                                    <Activity size={32} className="mx-auto text-zinc-200 dark:text-zinc-800 mb-2" />
-                                    <p className="text-xs text-zinc-400 italic">No timeline events recorded yet</p>
+                                <div>
+                                    <h4 className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-100 dark:border-zinc-800 pb-2 mb-4 flex items-center gap-2">
+                                        <Briefcase size={12} />
+                                        Task Activities
+                                    </h4>
+                                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                                        {project.taskLogs?.length > 0 ? project.taskLogs.map((l, i) => (
+                                            <div key={l.id || i} className="flex gap-4 items-start p-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                                                <div className="text-[10px] whitespace-nowrap text-zinc-400 font-mono mt-0.5">
+                                                    {new Date(l.timestamp || l.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-[10px] font-bold text-zinc-900 dark:text-zinc-100 border-b border-zinc-200 dark:border-zinc-800 pb-1 mb-1">{l.action.toUpperCase().replace('_', ' ')}</p>
+                                                    <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 truncate">{l.task_title}</p>
+                                                    <p className="text-[10px] text-zinc-500 mt-1">Initiator: <span className="font-bold text-zinc-700 dark:text-zinc-300">{l.worker_name || l.user_name || 'System'}</span> {(l.note || l.pause_reason) && <span className="italic text-zinc-400"> • {l.note || l.pause_reason}</span>}</p>
+                                                </div>
+                                            </div>
+                                        )) : (
+                                            <div className="text-center py-8">
+                                                <History size={32} className="mx-auto text-zinc-200 dark:text-zinc-800 mb-2" />
+                                                <p className="text-xs text-zinc-400 italic">No task logs recorded</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -714,6 +832,12 @@ function HistoryFootprint({ history, getImageUrl, onViewProject }) {
                                         <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Tasks Completed</p>
                                         <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
                                             <CheckCircle size={12} /> {item.completedTasks}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Credits Earned</p>
+                                        <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-1">
+                                            <Star size={12} className="fill-current" /> {item.collectedCredits || 0}
                                         </p>
                                     </div>
                                 </div>
@@ -854,23 +978,21 @@ export default function ProjectsPage() {
             </div>
 
 
-            {(isAdmin || isSupervisor) && (
-                <div className="flex gap-2 p-1 bg-zinc-100 dark:bg-zinc-900 rounded-2xl w-fit border border-zinc-200 dark:border-zinc-800">
-                    <button
-                        onClick={() => setActiveTab('current')}
-                        className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'current' ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
-                    >
-                        Active Projects
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('history')}
-                        className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'history' ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
-                    >
-                        <History size={16} /> Completed Projects
-                    </button>
+            <div className="flex gap-2 p-1 bg-zinc-100 dark:bg-zinc-900 rounded-2xl w-fit border border-zinc-200 dark:border-zinc-800">
+                <button
+                    onClick={() => setActiveTab('current')}
+                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'current' ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+                >
+                    Active Projects
+                </button>
+                <button
+                    onClick={() => setActiveTab('history')}
+                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'history' ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+                >
+                    <History size={16} /> Completed Projects
+                </button>
 
-                </div>
-            )}
+            </div>
 
             {loading ? (
                 <div className="flex justify-center py-20"><Loader2 size={32} className="text-blue-500 animate-spin" /></div>

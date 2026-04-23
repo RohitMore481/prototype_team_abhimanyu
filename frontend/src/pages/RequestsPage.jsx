@@ -87,60 +87,80 @@ export default function RequestsPage() {
                 </div>
             ) : (
                 <div className="grid gap-4">
-                    {filteredRequests.map(request => (
-                        <div key={request.id} className={`p-6 rounded-2xl border transition-all ${request.status === 'pending' ? 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 shadow-sm ring-1 ring-blue-500/10' : 'bg-zinc-50/50 dark:bg-zinc-900/20 border-zinc-100 dark:border-zinc-800 opacity-80'}`}>
-                            <div className="flex flex-wrap items-center justify-between gap-4">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-zinc-100 dark:bg-zinc-800 border-2 border-white dark:border-zinc-800 shadow-sm flex items-center justify-center overflow-hidden shrink-0">
-                                        {request.user_picture ? (
-                                            <img src={getImageUrl(request.user_picture)} alt={request.user_name} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <User size={24} className="text-zinc-400" />
-                                        )}
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-50">{request.user_name}</h3>
-                                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${request.status === 'pending' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400' : request.status === 'approved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'}`}>
-                                                {request.status}
-                                            </span>
-                                        </div>
-                                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                                            Requested {request.type === 'break' ? 'a break' : 'a machine breakdown report'} • {new Date(request.created_at).toLocaleString()}
-                                        </p>
-                                        {request.data && JSON.parse(request.data).note && (
-                                            <p className="mt-2 text-xs bg-zinc-100 dark:bg-zinc-800 p-2 rounded-lg text-zinc-600 dark:text-zinc-400 italic">
-                                                "{JSON.parse(request.data).note}"
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
+                    {filteredRequests.map(request => {
+                        const rData = request.data ? JSON.parse(request.data) : {};
+                        const isSevere = request.type === 'pause' && rData.reason === 'Machine issue';
+                        const isBreakdown = request.type === 'breakdown' || isSevere;
+                        const cardStyle = request.status === 'pending'
+                            ? (isSevere ? 'bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-800 shadow-sm ring-2 ring-red-500/50 pulse-ring' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 shadow-sm ring-1 ring-blue-500/10')
+                            : 'bg-zinc-50/50 dark:bg-zinc-900/20 border-zinc-100 dark:border-zinc-800 opacity-80';
 
-                                {request.status === 'pending' ? (
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => handleAction(request.id, 'rejected')}
-                                            className="p-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl border border-red-200 dark:border-red-500/20 transition-colors group"
-                                            title="Reject"
-                                        >
-                                            <X size={20} className="group-active:scale-90 transition-transform" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleAction(request.id, 'approved')}
-                                            className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/20 transition-all active:scale-95 group font-bold"
-                                        >
-                                            <Check size={20} className="group-active:scale-90 transition-transform" />
-                                            Approve
-                                        </button>
+                        return (
+                            <div key={request.id} className={`p-6 rounded-2xl border transition-all ${cardStyle}`}>
+                                <div className="flex flex-wrap items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-xl border-2 shadow-sm flex items-center justify-center overflow-hidden shrink-0 ${isSevere ? 'border-red-200 bg-red-100 dark:bg-red-900/50' : 'bg-zinc-100 dark:bg-zinc-800 border-white dark:border-zinc-800'}`}>
+                                            {request.user_picture ? (
+                                                <img src={getImageUrl(request.user_picture)} alt={request.user_name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                isSevere ? <AlertTriangle size={24} className="text-red-500 animate-pulse" /> : <User size={24} className="text-zinc-400" />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-50">{request.user_name}</h3>
+                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${request.status === 'pending' ? (isSevere ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400') : request.status === 'approved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'}`}>
+                                                    {request.status}
+                                                </span>
+                                                {isSevere && <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest bg-red-600 text-white animate-pulse">BREAKDOWN ALERT</span>}
+                                            </div>
+                                            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                                                Requested {request.type === 'break' ? 'a break' : request.type === 'pause' ? 'a task pause' : 'a machine breakdown report'} • {new Date(request.created_at).toLocaleString()}
+                                            </p>
+                                            {rData.title && (
+                                                <p className="mt-1 text-sm font-semibold text-zinc-700 dark:text-zinc-300 border-l-2 border-zinc-300 dark:border-zinc-600 pl-2">
+                                                    Task: {rData.title}
+                                                </p>
+                                            )}
+                                            {rData.reason && (
+                                                <p className="mt-1 text-sm text-amber-700 dark:text-amber-500 font-medium border-l-2 border-amber-300 dark:border-amber-700 pl-2">
+                                                    Reason: {rData.reason}
+                                                </p>
+                                            )}
+                                            {rData.note && (
+                                                <p className="mt-2 text-xs bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 p-2 rounded-lg text-zinc-600 dark:text-zinc-400 italic">
+                                                    "{rData.note}"
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
-                                ) : (
-                                    <div className="text-xs font-medium text-zinc-400 dark:text-zinc-500 italic">
-                                        Processed at {new Date(request.updated_at).toLocaleTimeString()}
-                                    </div>
-                                )}
+
+                                    {request.status === 'pending' ? (
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleAction(request.id, 'rejected')}
+                                                className="p-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl border border-red-200 dark:border-red-500/20 transition-colors group"
+                                                title="Reject"
+                                            >
+                                                <X size={20} className="group-active:scale-90 transition-transform" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleAction(request.id, 'approved')}
+                                                className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/20 transition-all active:scale-95 group font-bold"
+                                            >
+                                                <Check size={20} className="group-active:scale-90 transition-transform" />
+                                                Approve
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="text-xs font-medium text-zinc-400 dark:text-zinc-500 italic">
+                                            Processed at {new Date(request.updated_at).toLocaleTimeString()}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
         </div>

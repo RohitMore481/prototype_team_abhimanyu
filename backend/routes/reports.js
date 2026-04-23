@@ -10,11 +10,19 @@ router.get('/weekly', auth, (req, res) => {
   if (req.user.role !== 'admin' && req.user.role !== 'supervisor' && req.user.role !== 'worker') return res.status(403).json({ error: 'Unauthorized' });
 
   let projectId = req.user.project_id;
+  let isScoped = false;
   if (req.user.role === 'supervisor' || req.user.role === 'worker') {
     const user = db.prepare('SELECT project_id FROM users WHERE id = ?').get(req.user.id);
     projectId = user ? user.project_id : null;
+    isScoped = true;
+  } else if (req.user.role === 'admin' && req.query.projectId) {
+    projectId = req.query.projectId;
+    isScoped = true;
   }
-  const isScoped = (req.user.role === 'supervisor' || req.user.role === 'worker') && projectId !== null;
+
+  if (isScoped && !projectId) {
+    return res.json({ current: {}, previous: {}, dailyTrend: [] });
+  }
 
   // Metrics for last 7 days vs previous 7 days
   const now = new Date();
@@ -33,7 +41,7 @@ router.get('/weekly', auth, (req, res) => {
         AVG(CASE WHEN status = 'completed' THEN (strftime('%s', completed_at) - strftime('%s', started_at))/60 ELSE NULL END) as avg_actual
       FROM tasks
       WHERE (created_at BETWEEN ? AND ?)
-      ${isScoped ? 'AND project_id = ?' : ''}
+      ${isScoped ? 'AND project_id = ?' : "AND project_id IN (SELECT id FROM projects WHERE status = 'active')"}
     `).get(start, end, ...(isScoped ? [projectId] : []));
   };
 
@@ -45,7 +53,7 @@ router.get('/weekly', auth, (req, res) => {
     SELECT DATE(created_at) as date, COUNT(*) as count, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed
     FROM tasks
     WHERE created_at >= ?
-    ${isScoped ? 'AND project_id = ?' : ''}
+    ${isScoped ? 'AND project_id = ?' : "AND project_id IN (SELECT id FROM projects WHERE status = 'active')"}
     GROUP BY DATE(created_at)
     ORDER BY date ASC
   `).all(weekAgo, ...(isScoped ? [projectId] : []));
@@ -64,11 +72,19 @@ router.get('/monthly', auth, (req, res) => {
   if (req.user.role !== 'admin' && req.user.role !== 'supervisor' && req.user.role !== 'worker') return res.status(403).json({ error: 'Unauthorized' });
 
   let projectId = req.user.project_id;
+  let isScoped = false;
   if (req.user.role === 'supervisor' || req.user.role === 'worker') {
     const user = db.prepare('SELECT project_id FROM users WHERE id = ?').get(req.user.id);
     projectId = user ? user.project_id : null;
+    isScoped = true;
+  } else if (req.user.role === 'admin' && req.query.projectId) {
+    projectId = req.query.projectId;
+    isScoped = true;
   }
-  const isScoped = (req.user.role === 'supervisor' || req.user.role === 'worker') && projectId !== null;
+
+  if (isScoped && !projectId) {
+    return res.json({ current: {}, machineUtilization: [] });
+  }
 
   const now = new Date();
   const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()).toISOString();
@@ -84,7 +100,7 @@ router.get('/monthly', auth, (req, res) => {
         AVG(CASE WHEN status = 'completed' THEN (strftime('%s', completed_at) - strftime('%s', started_at))/60 ELSE NULL END) as avg_completion_time
       FROM tasks
       WHERE (created_at BETWEEN ? AND ?)
-      ${isScoped ? 'AND project_id = ?' : ''}
+      ${isScoped ? 'AND project_id = ?' : "AND project_id IN (SELECT id FROM projects WHERE status = 'active')"}
     `).get(start, end, ...(isScoped ? [projectId] : []));
   };
 
@@ -94,10 +110,10 @@ router.get('/monthly', auth, (req, res) => {
   const machineUtilization = db.prepare(`
     SELECT m.name, COUNT(t.id) as task_count, SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) as completed
     FROM machines m
-    LEFT JOIN tasks t ON t.machine_id = m.id AND t.created_at >= ?
-    ${isScoped ? 'WHERE m.project_id = ?' : ''}
+    LEFT JOIN tasks t ON t.machine_id = m.id AND t.created_at >= ? ${isScoped ? 'AND t.project_id = ?' : "AND t.project_id IN (SELECT id FROM projects WHERE status = 'active')"}
+    ${isScoped ? 'WHERE m.project_id = ?' : "WHERE m.project_id IN (SELECT id FROM projects WHERE status = 'active')"}
     GROUP BY m.id
-  `).all(monthAgo, ...(isScoped ? [projectId] : []));
+  `).all(monthAgo, ...(isScoped ? [projectId, projectId] : []));
 
   res.json({
     current: currentStats,
@@ -112,11 +128,19 @@ router.get('/workers', auth, (req, res) => {
   if (req.user.role !== 'admin' && req.user.role !== 'supervisor' && req.user.role !== 'worker') return res.status(403).json({ error: 'Unauthorized' });
 
   let projectId = req.user.project_id;
+  let isScoped = false;
   if (req.user.role === 'supervisor' || req.user.role === 'worker') {
     const user = db.prepare('SELECT project_id FROM users WHERE id = ?').get(req.user.id);
     projectId = user ? user.project_id : null;
+    isScoped = true;
+  } else if (req.user.role === 'admin' && req.query.projectId) {
+    projectId = req.query.projectId;
+    isScoped = true;
   }
-  const isScoped = (req.user.role === 'supervisor' || req.user.role === 'worker') && projectId !== null;
+
+  if (isScoped && !projectId) {
+    return res.json([]);
+  }
 
   const workers = db.prepare(`
     SELECT 
@@ -125,6 +149,7 @@ router.get('/workers', auth, (req, res) => {
       u.status,
       u.is_on_break,
       u.profile_picture,
+      SUM(CASE WHEN t.status = 'completed' THEN COALESCE(t.credit_value, 1) ELSE 0 END) as total_credits,
       COUNT(t.id) as total_tasks,
       SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) as completed,
       SUM(CASE WHEN t.status = 'delayed' THEN 1 ELSE 0 END) as delayed,
@@ -132,11 +157,11 @@ router.get('/workers', auth, (req, res) => {
           THEN (strftime('%s', COALESCE(t.completed_at, datetime('now'))) - strftime('%s', t.deadline_at))/60 ELSE 0 END) as total_delay_mins,
       AVG(CASE WHEN t.status = 'completed' THEN (strftime('%s', t.completed_at) - strftime('%s', t.started_at))/60 ELSE NULL END) as avg_completion_time
     FROM users u
-    LEFT JOIN tasks t ON t.assigned_worker_id = u.id
+    LEFT JOIN tasks t ON t.assigned_worker_id = u.id ${isScoped ? 'AND t.project_id = ?' : "AND t.project_id IN (SELECT id FROM projects WHERE status = 'active')"}
     WHERE u.role = 'worker'
-    ${isScoped ? 'AND u.project_id = ?' : ''}
+    ${isScoped ? 'AND u.project_id = ?' : "AND u.project_id IN (SELECT id FROM projects WHERE status = 'active')"}
     GROUP BY u.id
-  `).all(...(isScoped ? [projectId] : []));
+  `).all(...(isScoped ? [projectId, projectId] : []));
 
   res.json(workers);
 });
