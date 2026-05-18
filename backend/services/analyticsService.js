@@ -110,6 +110,7 @@ function analyzeUtilization(scheduledTasks, workers, lastEndTime, startTime) {
 function generateInsights(scheduledTasks, summary, utilization) {
     const insights = [];
 
+    // 1. Bottleneck Analysis
     if (summary.bottleneck && summary.bottleneck.percentageContribution > 40) {
         insights.push({
             type: 'warning',
@@ -118,6 +119,26 @@ function generateInsights(scheduledTasks, summary, utilization) {
         });
     }
 
+    // 2. Feasibility / Resource Requirement Insights
+    if (summary.timing && !summary.timing.isFeasible) {
+        const extraMinutes = summary.timing.extraTimeRequired;
+        const avgAvailableMinutes = utilization.reduce((sum, u) => sum + u.availableMinutes, 0) / Math.max(1, utilization.length);
+        const workersNeeded = Math.ceil(extraMinutes / avgAvailableMinutes);
+
+        insights.push({
+            type: 'critical',
+            message: `Deadline missed by ${summary.timing.extraTimeDisplay}.`,
+            action: `Add approximately ${workersNeeded} more worker(s) to the shift (Day or Night) to meet the current deadline.`
+        });
+    } else if (summary.timing && summary.timing.slackMinutes < 60 && summary.timing.slackMinutes > 0) {
+        insights.push({
+            type: 'warning',
+            message: `Tight deadline. Only ${summary.timing.slackDisplay} slack time remains.`,
+            action: 'Consider adding one flexible worker to handle overflow if any delays occur.'
+        });
+    }
+
+    // 3. Utilization Analysis
     const lowUtilized = utilization.find(u => u.utilizationRate < 50);
     if (lowUtilized) {
         insights.push({
@@ -127,11 +148,13 @@ function generateInsights(scheduledTasks, summary, utilization) {
         });
     }
 
-    insights.push({
-        type: 'success',
-        message: 'Parallel processing possible for initial stages.',
-        action: 'Ensure workers are cross-trained to maximize overlap.'
-    });
+    if (insights.length === 0) {
+        insights.push({
+            type: 'success',
+            message: 'Production plan is well-balanced.',
+            action: 'Ensure workers are cross-trained to maintain this efficiency.'
+        });
+    }
 
     return insights;
 }

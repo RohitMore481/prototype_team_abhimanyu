@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const planningRouter = require('./planning');
+const { dispatchNextPlanTask, checkGlobalUnblocks } = planningRouter;
 const creditService = require('../services/creditService');
-const { dispatchNextPlanTask } = require('./planning');
 
 function createNotification(userId, message, type = 'info') {
   try {
@@ -214,10 +215,13 @@ router.post('/', auth, (req, res) => {
     }
   }
 
+  const minutes = parseInt(expected_minutes) || 30;
+  const credits = Math.max(1, Math.round(minutes / 10));
+
   const result = db.prepare(`
     INSERT INTO tasks (title, description, machine_id, priority, expected_minutes, created_by, status, project_id, credit_value)
     VALUES (?, ?, ?, ?, ?, ?, 'not_started', ?, ?)
-  `).run(title, description || '', machine_id || null, priority || 'medium', expected_minutes || 30, req.user.id, project_id || null, credit_value || 1);
+  `).run(title, description || '', machine_id || null, priority || 'medium', minutes, req.user.id, project_id || null, credits);
 
   const newTask = db.prepare(`
     SELECT t.*, m.name as machine_name, s.name as supervisor_name, m.status as machine_status
@@ -311,6 +315,10 @@ router.put('/:id', auth, async (req, res) => {
           const machine = db.prepare('SELECT * FROM machines WHERE id = ?').get(task.machine_id);
           emitUpdate(req, 'machine:status', machine);
         }
+
+        // Sync Automation Status to 'active' if it's a plan task
+        db.prepare("UPDATE plan_tasks SET status = 'active' WHERE task_id = ?").run(taskId);
+
         break;
 
       case 'pause':
@@ -365,8 +373,8 @@ router.put('/:id', auth, async (req, res) => {
             if (planTaskRow) {
               // Mark plan_task completed
               db.prepare("UPDATE plan_tasks SET status = 'completed' WHERE task_id = ?").run(taskId);
-              // Dispatch the next ready task for this worker
-              dispatchNextPlanTask(planTaskRow.plan_id, task.assigned_worker_id, io);
+              // Trigger global check for ANY worker unblocked by this completion
+              checkGlobalUnblocks(planTaskRow.plan_id, io);
             }
           }
         }
@@ -399,7 +407,11 @@ router.put('/:id', auth, async (req, res) => {
           }
           if (assigned_worker_id !== undefined) updateFields.assigned_worker_id = assigned_worker_id;
           if (priority !== undefined) updateFields.priority = priority;
-          if (expected_minutes !== undefined) updateFields.expected_minutes = expected_minutes;
+          if (expected_minutes !== undefined) {
+            const mins = parseInt(expected_minutes);
+            updateFields.expected_minutes = mins;
+            updateFields.credit_value = Math.max(1, Math.round(mins / 10));
+          }
           if (req.body.project_id !== undefined) updateFields.project_id = req.body.project_id;
           logAction = 'overridden';
         }
@@ -434,6 +446,13 @@ router.put('/:id', auth, async (req, res) => {
     }
     const supervisors = db.prepare("SELECT id FROM users WHERE role IN ('admin','supervisor')").all();
     supervisors.forEach(s => createNotification(s.id, `Task "${updatedTask.title}" completed by ${req.user.name}`, 'success'));
+
+    // Automation: Dispatch next task if this was part of a plan
+    const planLink = db.prepare('SELECT plan_id FROM plan_tasks WHERE task_id = ?').get(taskId);
+    if (planLink) {
+      db.prepare('UPDATE plan_tasks SET status = ? WHERE task_id = ?').run('completed', taskId);
+      dispatchNextPlanTask(planLink.plan_id, task.assigned_worker_id, req.app.get('io'));
+    }
   }
 
   emitUpdate(req, 'task:updated', updatedTask);
@@ -462,6 +481,35 @@ router.delete('/:id', auth, (req, res) => {
     notifyAndEmit(req, [task.assigned_worker_id], msg, 'warning', 'notification:new', { message: msg, type: 'warning' });
   }
 
+  // Sync with production plans: if this is a master task, perform a full "flush"
+  const plan = db.prepare("SELECT id FROM production_plans WHERE master_task_id = ?").get(taskId);
+  if (plan) {
+    // 1. Reset plan status
+    db.prepare("UPDATE production_plans SET status = 'draft', master_task_id = NULL WHERE id = ?").run(plan.id);
+
+    // 2. Identify ALL task IDs associated with this plan's current execution
+    const taskRows = db.prepare(`
+      SELECT id FROM tasks WHERE id = ? OR parent_task_id = ?
+      UNION
+      SELECT task_id as id FROM plan_tasks WHERE plan_id = ? AND task_id IS NOT NULL
+    `).all(taskId, taskId, plan.id);
+
+    const taskIds = taskRows.map(r => r.id);
+
+    if (taskIds.length > 0) {
+      // 3. Delete logs for ALL associated tasks
+      const placeholders = taskIds.map(() => '?').join(',');
+      db.prepare(`DELETE FROM task_logs WHERE task_id IN (${placeholders})`).run(...taskIds);
+
+      // 4. Delete the subtasks themselves
+      db.prepare('DELETE FROM tasks WHERE parent_task_id = ?').run(taskId);
+    }
+
+    // 5. Clear the dispatched queue for this plan
+    db.prepare('DELETE FROM plan_tasks WHERE plan_id = ?').run(plan.id);
+  }
+
+  // 6. Final cleanup for the task itself (master or standalone)
   db.prepare('DELETE FROM task_logs WHERE task_id = ?').run(taskId);
   db.prepare('DELETE FROM tasks WHERE id = ?').run(taskId);
 

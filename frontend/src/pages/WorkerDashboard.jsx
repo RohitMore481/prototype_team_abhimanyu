@@ -263,6 +263,7 @@ function TaskCard({ task, onAction, hideActions, isOnBreak }) {
           <div className="flex items-center gap-2 flex-wrap mb-1.5">
             <span className={`badge badge-${task.priority} capitalize`}>{t(task.priority)}</span>
             <span className={`badge badge-${task.status}`}>{t(task.status)}</span>
+            {task.title.startsWith('[Automation]') && <span className="badge bg-purple-50 text-purple-700 border-purple-200 font-bold uppercase text-[9px]">Automation</span>}
             {overtime && task.status !== 'completed' && <span className="badge bg-red-50 text-red-700 border-red-200 font-bold uppercase text-[9px]">Overdue</span>}
           </div>
           <h3 className="font-bold text-zinc-900 dark:text-zinc-50 text-lg leading-snug tracking-tight">{task.title}</h3>

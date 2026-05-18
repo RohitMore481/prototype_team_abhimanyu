@@ -98,6 +98,23 @@ router.get('/supervisors', auth, (req, res) => {
   const supervisors = db.prepare(query).all(...params);
   res.json(supervisors);
 });
+
+// GET user details by ID
+router.get('/:id', auth, (req, res) => {
+  try {
+    const user = db.prepare('SELECT id, name, email, role, status, is_live, is_on_break, shifts, profile_picture, project_id, created_at FROM users WHERE id = ?').get(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Parse shifts if they exist
+    if (user.shifts) {
+      try { user.shifts = JSON.parse(user.shifts); } catch (e) { user.shifts = []; }
+    }
+
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch user: ' + err.message });
+  }
+});
 // POST create user (Admin only)
 router.post('/', auth, (req, res) => {
   upload.single('profile_picture')(req, res, function (err) {
@@ -221,11 +238,17 @@ router.delete('/:id', auth, (req, res) => {
     db.prepare('DELETE FROM break_logs WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM notifications WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM requests WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM credit_logs WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM shift_logs WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM logout_logs WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM alerts WHERE worker_id = ?').run(userId);
+    db.prepare('DELETE FROM user_project_history WHERE user_id = ?').run(userId);
     // Task logs where performed_by is this user
     db.prepare('UPDATE task_logs SET performed_by = NULL WHERE performed_by = ?').run(userId);
-    // Tasks where created_by or assigned_worker_id is our user - handled by ON DELETE SET NULL in tasks table,
-    // but ensure tasks that ARE in_progress are handled.
+    // Ensure tasks that are in-progress are reset before user deletion
     db.prepare("UPDATE tasks SET status = 'not_started', assigned_worker_id = NULL WHERE assigned_worker_id = ? AND status IN ('in_progress','paused','delayed')").run(userId);
+    // Clear any plan_task assignments
+    db.prepare('UPDATE plan_tasks SET worker_id = NULL WHERE worker_id = ?').run(userId);
 
     db.prepare('DELETE FROM users WHERE id = ?').run(userId);
 

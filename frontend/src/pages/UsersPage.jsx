@@ -35,6 +35,20 @@ function AddUserModal({ onClose, onSave }) {
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'worker' });
   const [selectedDays, setSelectedDays] = useState(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
   const [shiftType, setShiftType] = useState('day');
+  const [loading, setLoading] = useState(false);
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    setFile(f);
+    const reader = new FileReader();
+    reader.onloadend = () => setPreview(reader.result);
+    reader.readAsDataURL(f);
+  };
+
   const handleSubmit = async e => {
     e.preventDefault();
     setLoading(true);
@@ -214,8 +228,8 @@ function EditUserModal({ user, projects, onClose, onSave }) {
                           type="button"
                           onClick={() => setSelectedDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day])}
                           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${selectedDays.includes(day)
-                              ? 'bg-blue-500 text-white border-blue-600 shadow-sm'
-                              : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-blue-400'
+                            ? 'bg-blue-500 text-white border-blue-600 shadow-sm'
+                            : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-blue-400'
                             }`}
                         >
                           {day}

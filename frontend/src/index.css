@@ -144,8 +144,8 @@
 @keyframes slideIn { from { transform: translateY(-8px); opacity:0; } to { transform:translateY(0); opacity:1; } }
 .animate-slide-in { animation: slideIn 0.2s ease-out; }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+/* Custom Scrollbar Utility */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--muted); }
