@@ -10,6 +10,18 @@ db.pragma('foreign_keys = ON');
 
 // Create tables
 db.exec(`
+  CREATE TABLE IF NOT EXISTS projects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    odoo_id TEXT UNIQUE,
+    customer TEXT,
+    deadline TEXT,
+    odoo_status TEXT,
+    time_constraint_enabled INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -169,7 +181,80 @@ db.exec(`
     status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','active','completed')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS assemblies (
+    id TEXT PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    drawing_no TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS sub_assemblies (
+    id TEXT PRIMARY KEY,
+    assembly_id TEXT NOT NULL REFERENCES assemblies(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    drawing_no TEXT,
+    planned_hours REAL,
+    material_status TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS components (
+    id TEXT PRIMARY KEY,
+    sub_assembly_id TEXT NOT NULL REFERENCES sub_assemblies(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    quantity INTEGER,
+    expected_arrival TEXT,
+    status TEXT CHECK(status IN ('pending', 'arrived', 'delayed')),
+    part_number TEXT,
+    supplier TEXT,
+    required_quantity INTEGER,
+    available_quantity INTEGER,
+    actual_arrival TEXT,
+    inventory_status TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS odoo_dependencies (
+    from_sub_assembly_id TEXT NOT NULL REFERENCES sub_assemblies(id) ON DELETE CASCADE,
+    to_sub_assembly_id TEXT NOT NULL REFERENCES sub_assemblies(id) ON DELETE CASCADE,
+    PRIMARY KEY (from_sub_assembly_id, to_sub_assembly_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS shopfloor_graph_overrides (
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    from_sub_assembly_id TEXT NOT NULL REFERENCES sub_assemblies(id) ON DELETE CASCADE,
+    to_sub_assembly_id TEXT NOT NULL REFERENCES sub_assemblies(id) ON DELETE CASCADE,
+    action TEXT NOT NULL CHECK(action IN ('add', 'remove')),
+    PRIMARY KEY (project_id, from_sub_assembly_id, to_sub_assembly_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS sub_assembly_execution (
+    sub_assembly_id TEXT PRIMARY KEY REFERENCES sub_assemblies(id) ON DELETE CASCADE,
+    assigned_worker_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'completed', 'delayed')),
+    progress INTEGER DEFAULT 0 CHECK(progress >= 0 AND progress <= 100),
+    delays TEXT,
+    notes TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
+
+// Run database migrations/schema updates for projects
+try { db.exec("ALTER TABLE projects ADD COLUMN odoo_id TEXT"); } catch (e) {}
+try { db.exec("ALTER TABLE projects ADD COLUMN customer TEXT"); } catch (e) {}
+try { db.exec("ALTER TABLE projects ADD COLUMN deadline TEXT"); } catch (e) {}
+try { db.exec("ALTER TABLE projects ADD COLUMN odoo_status TEXT"); } catch (e) {}
+try { db.exec("ALTER TABLE projects ADD COLUMN time_constraint_enabled INTEGER DEFAULT 0"); } catch (e) {}
+
+// Run database migrations/schema updates for components
+try { db.exec("ALTER TABLE components ADD COLUMN part_number TEXT"); } catch (e) {}
+try { db.exec("ALTER TABLE components ADD COLUMN supplier TEXT"); } catch (e) {}
+try { db.exec("ALTER TABLE components ADD COLUMN required_quantity INTEGER"); } catch (e) {}
+try { db.exec("ALTER TABLE components ADD COLUMN available_quantity INTEGER"); } catch (e) {}
+try { db.exec("ALTER TABLE components ADD COLUMN actual_arrival TEXT"); } catch (e) {}
+try { db.exec("ALTER TABLE components ADD COLUMN inventory_status TEXT"); } catch (e) {}
 
 const bcrypt = require('bcryptjs');
 const adminExists = db.prepare("SELECT id FROM users WHERE role = 'admin'").get();

@@ -19,6 +19,7 @@ import ProjectsPage from './pages/ProjectsPage';
 import CreditSettings from './pages/Admin/CreditSettings';
 import SupervisorAlerts from './pages/SupervisorAlerts';
 import ProductionPlanner from './pages/ProductionPlanner';
+import ProjectDetailsPage from './pages/ProjectDetailsPage';
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, loading } = useAuth();
@@ -70,6 +71,7 @@ function AppRoutes() {
       <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><Layout><UsersPage /></Layout></ProtectedRoute>} />
       {/* Shared/Projects */}
       <Route path="/projects" element={<ProtectedRoute allowedRoles={['admin', 'supervisor', 'worker']}><Layout><ProjectsPage /></Layout></ProtectedRoute>} />
+      <Route path="/projects/:id" element={<ProtectedRoute allowedRoles={['admin', 'supervisor', 'worker']}><Layout><ProjectDetailsPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={['admin']}><Layout><AnalyticsPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/requests" element={<ProtectedRoute allowedRoles={['admin']}><Layout><RequestsPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/credits" element={<ProtectedRoute allowedRoles={['admin']}><Layout><CreditSettings /></Layout></ProtectedRoute>} />

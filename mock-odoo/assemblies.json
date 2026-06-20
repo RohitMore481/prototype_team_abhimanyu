@@ -1,0 +1,20 @@
+[
+  {
+    "id": "ASM-001",
+    "projectId": "MO-001",
+    "name": "Main AGV Chassis",
+    "drawingNo": "DWG-AGV-001"
+  },
+  {
+    "id": "ASM-002",
+    "projectId": "MO-001",
+    "name": "Sensor & Navigation Box",
+    "drawingNo": "DWG-NAV-002"
+  },
+  {
+    "id": "ASM-003",
+    "projectId": "MO-001",
+    "name": "Drive Powertrain Assembly",
+    "drawingNo": "DWG-PWR-003"
+  }
+]

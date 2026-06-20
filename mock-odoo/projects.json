@@ -1,0 +1,17 @@
+[
+    {
+      "id": "MO-001",
+      "name": "Industrial Mixer Machine",
+      "customer": "ABC Industries",
+      "customerContact": "Rajesh Sharma",
+      "deadline": "2026-07-15",
+      "priority": "High",
+      "status": "Confirmed",
+      "projectType": "Custom Manufacturing",
+      "description": "Industrial mixer for food processing plant",
+      "createdAt": "2026-06-15",
+      "estimatedHours": 120,
+      "timeConstraintEnabled": false,
+      "completionPercentage": 0
+    }
+  ]

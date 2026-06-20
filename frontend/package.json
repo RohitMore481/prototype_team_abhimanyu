@@ -10,12 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@xyflow/react": "^12.11.0",
     "axios": "^1.14.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.7.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-hot-toast": "^2.6.0",
+    "react-is": "^19.2.7",
     "react-router-dom": "^7.14.0",
     "recharts": "^3.8.1",
     "shopfloor-workflow-optimization": "file:..",

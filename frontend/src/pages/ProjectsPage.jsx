@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -895,6 +896,7 @@ function HistoryFootprint({ history, getImageUrl, onViewProject }) {
 
 
 export default function ProjectsPage() {
+    const navigate = useNavigate();
     const { user, getImageUrl } = useAuth();
     const { t } = useLanguage();
     const [projects, setProjects] = useState([]);
@@ -941,11 +943,8 @@ export default function ProjectsPage() {
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
 
-    const handleViewProject = async id => {
-        try {
-            const res = await api.get(`/projects/${id}`);
-            setViewProject(res.data);
-        } catch { toast.error('Failed to load project details'); }
+    const handleViewProject = id => {
+        navigate(`/projects/${id}`);
     };
 
     const handleDelete = async id => {
@@ -1002,41 +1001,59 @@ export default function ProjectsPage() {
                         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {projects.filter(p => !p.status || p.status === 'active').map(p => (
 
-                                <div key={p.id} className="card group hover:shadow-xl transition-all cursor-pointer overflow-hidden border-zinc-100 dark:border-zinc-800" onClick={() => handleViewProject(p.id)}>
+                                <div key={p.id} className="card group hover:shadow-xl transition-all cursor-pointer overflow-hidden border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col justify-between" onClick={() => handleViewProject(p.id)}>
                                     <div className="p-6">
                                         <div className="flex justify-between items-start mb-4">
-                                            <div className="p-2.5 bg-blue-50 dark:bg-blue-500/10 rounded-xl group-hover:scale-110 transition-transform">
-                                                <Briefcase size={20} className="text-blue-500" />
+                                            <div>
+                                                <span className="inline-flex items-center gap-1 text-[9px] font-black tracking-widest text-blue-500 uppercase bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded-md">
+                                                    {p.odoo_id || `PROJ-${p.id}`}
+                                                </span>
+                                                <span className="ml-2 inline-flex items-center gap-1 text-[9px] font-black tracking-widest text-zinc-500 uppercase bg-zinc-50 dark:bg-zinc-900 px-2 py-0.5 rounded-md">
+                                                    {p.odoo_status || 'Active'}
+                                                </span>
                                             </div>
                                             {isAdmin && (
                                                 <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-                                                    <button onClick={() => { setViewProject(p); setShowForm(true); }} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"><Edit2 size={16} className="text-zinc-400 hover:text-zinc-600" /></button>
-                                                    <button onClick={() => handleDelete(p.id)} className="p-2 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors"><Trash2 size={16} className="text-red-400 hover:text-red-600" /></button>
+                                                    <button onClick={() => { setViewProject(p); setShowForm(true); }} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"><Edit2 size={14} className="text-zinc-400 hover:text-zinc-600" /></button>
+                                                    <button onClick={() => handleDelete(p.id)} className="p-2 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors"><Trash2 size={14} className="text-red-400 hover:text-red-600" /></button>
                                                 </div>
                                             )}
                                         </div>
+                                        
                                         <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 group-hover:text-blue-500 transition-colors">{p.name}</h3>
-                                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 line-clamp-2 h-10">{p.description || 'No description provided.'}</p>
-
-                                        <div className="grid grid-cols-2 gap-4 mt-6">
-                                            <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-900/50 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800">
-                                                <Users size={14} className="text-blue-500" />
-                                                <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">{p.workerCount} Workers</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-900/50 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800">
-                                                <Cpu size={14} className="text-emerald-500" />
-                                                <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">{p.machineCount} Machines</span>
-                                            </div>
+                                        
+                                        <div className="mt-2 space-y-1">
+                                            {p.customer && (
+                                                <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                                                    <span className="text-zinc-400">Customer:</span> {p.customer}
+                                                </p>
+                                            )}
+                                            {p.deadline && (
+                                                <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
+                                                    <span className="text-zinc-400">Deadline:</span> {new Date(p.deadline).toLocaleDateString()}
+                                                </p>
+                                            )}
                                         </div>
 
-                                        <div className="mt-6 flex items-center justify-between">
-                                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1">
-                                                <Clock size={12} /> {new Date(p.created_at).toLocaleDateString()}
-                                            </span>
-                                            <div className="flex -space-x-2">
-                                                <div className="w-6 h-6 rounded-full bg-blue-500 border border-white dark:border-zinc-800 flex items-center justify-center text-[8px] text-white font-bold">+{p.supervisorCount}</div>
-                                                <div className="w-6 h-6 rounded-full bg-zinc-200 dark:bg-zinc-700 border border-white dark:border-zinc-800 flex items-center justify-center text-[8px] text-zinc-500 font-bold">M</div>
+                                        <div className="grid grid-cols-2 gap-3 mt-6">
+                                            <div className="flex flex-col p-2 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                                                <span className="text-[9px] text-zinc-400 uppercase font-black tracking-wider">Assemblies</span>
+                                                <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200 mt-0.5">{p.totalAssemblies || 0} units</span>
                                             </div>
+                                            <div className="flex flex-col p-2 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                                                <span className="text-[9px] text-zinc-400 uppercase font-black tracking-wider">Sub-Assemblies</span>
+                                                <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200 mt-0.5">{p.totalSubAssemblies || 0} tasks</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="px-6 pb-6 pt-2 border-t border-zinc-50 dark:border-zinc-900 bg-zinc-50/30 dark:bg-zinc-900/10">
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Progress</span>
+                                            <span className="text-xs font-black text-blue-500">{p.completionPercentage || 0}%</span>
+                                        </div>
+                                        <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                            <div className="h-full bg-blue-500 rounded-full transition-all duration-500" style={{ width: `${p.completionPercentage || 0}%` }} />
                                         </div>
                                     </div>
                                 </div>
