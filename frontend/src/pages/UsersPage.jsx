@@ -285,7 +285,7 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState(null);
   const [expandedUserId, setExpandedUserId] = useState(null);
   const { socket } = useSocket();
-  const { getImageUrl } = useAuth();
+  const { getImageUrl, user: authUser } = useAuth();
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -331,9 +331,14 @@ export default function UsersPage() {
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400 mt-1">{users.length} registered users</p>
         </div>
-        <button id="add-user-btn" className="btn-primary" onClick={() => setShowModal(true)}>
-          <Plus size={18} /> Add User
-        </button>
+        {authUser?.role === 'admin' && (
+          <button
+            onClick={() => { setEditUser(null); setShowModal(true); }}
+            className="btn-primary px-5 py-2.5 shadow-lg shadow-blue-500/20 flex items-center gap-2"
+          >
+            <Plus size={16} /> Add User
+          </button>
+        )}
       </div>
 
       {loading ? (

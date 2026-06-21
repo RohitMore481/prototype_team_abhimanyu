@@ -33,7 +33,6 @@ export default function Layout({ children }) {
     admin: [
       { path: '/admin', label: t('dashboard'), icon: LayoutDashboard },
       { path: '/admin/tasks', label: t('all_tasks'), icon: ClipboardList },
-      { path: '/admin/machines', label: t('machines'), icon: Cpu },
       { path: '/admin/users', label: t('users'), icon: Users },
       { path: '/projects', label: 'Projects', icon: Factory },
       { path: '/planning', label: 'Process Designer', icon: CalendarDays },
@@ -44,7 +43,6 @@ export default function Layout({ children }) {
     supervisor: [
       { path: '/supervisor', label: t('dashboard'), icon: LayoutDashboard },
       { path: '/supervisor/tasks', label: t('manage_tasks'), icon: ClipboardList },
-      { path: '/supervisor/machines', label: t('machines'), icon: Cpu },
       { path: '/supervisor/analytics', label: t('analytics'), icon: BarChart3 },
       { path: '/projects', label: 'Projects', icon: Factory },
       { path: '/planning', label: 'Automation', icon: Coffee },

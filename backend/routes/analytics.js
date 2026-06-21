@@ -29,7 +29,8 @@ router.get('/summary', auth, (req, res) => {
       pauseReasons: [],
       workerPerformance: [],
       machineUtilization: [],
-      dailyTrend: []
+      dailyTrend: [],
+      projectCounts: { completed: 0, in_progress: 0, pending: 0 }
     });
   }
 
@@ -118,6 +119,12 @@ router.get('/summary', auth, (req, res) => {
     projectName = project ? project.name : 'Unknown Project';
   }
 
+  const projectCounts = {
+    completed: db.prepare("SELECT COUNT(*) as count FROM projects WHERE status = 'completed'").get().count,
+    in_progress: db.prepare("SELECT COUNT(*) as count FROM projects WHERE status = 'in_progress'").get().count,
+    pending: db.prepare("SELECT COUNT(*) as count FROM projects WHERE status = 'pending'").get().count,
+  };
+
   res.json({
     projectName,
     taskCounts,
@@ -128,7 +135,8 @@ router.get('/summary', auth, (req, res) => {
     pauseReasons,
     workerPerformance,
     machineUtilization,
-    dailyTrend
+    dailyTrend,
+    projectCounts
   });
 });
 

@@ -999,7 +999,7 @@ export default function ProjectsPage() {
                 <>
                     {activeTab === 'current' ? (
                         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {projects.filter(p => !p.status || p.status === 'active').map(p => (
+                            {projects.filter(p => !p.status || p.status === 'active' || p.status === 'in_progress').map(p => (
 
                                 <div key={p.id} className="card group hover:shadow-xl transition-all cursor-pointer overflow-hidden border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col justify-between" onClick={() => handleViewProject(p.id)}>
                                     <div className="p-6">

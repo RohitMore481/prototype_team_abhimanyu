@@ -254,6 +254,30 @@ export default function AdminDashboard() {
           ))}
         </div>
 
+        {summary.projectCounts && (
+          <div className="card">
+            <h3 className="font-semibold mb-6 flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
+              <ClipboardList size={18} className="text-zinc-500" /> Project Status Overview
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { label: 'Completed', key: 'completed', cls: 'badge-running', count: summary.projectCounts.completed || 0, path: '/projects' },
+                { label: 'In Process', key: 'in_progress', cls: 'badge-paused', count: summary.projectCounts.in_progress || 0, path: '/projects' },
+                { label: 'Pending', key: 'pending', cls: 'badge-idle', count: summary.projectCounts.pending || 0, path: '/projects' },
+              ].map(({ label, cls, count, path }) => (
+                <div
+                  key={label}
+                  onClick={() => navigate(path)}
+                  className="flex flex-col items-center justify-center p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/30 hover:bg-white dark:hover:bg-zinc-800/50 transition-all cursor-pointer group shadow-sm hover:shadow-md"
+                >
+                  <p className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50 mb-3 group-hover:scale-110 transition-transform">{count}</p>
+                  <span className={`${cls} transition-colors`}>{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="card">
           <h3 className="font-semibold mb-6 flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
             <Cpu size={18} className="text-zinc-500" /> Machine Status

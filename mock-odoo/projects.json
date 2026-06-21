@@ -1,17 +1,77 @@
 [
-    {
-      "id": "MO-001",
-      "name": "Industrial Mixer Machine",
-      "customer": "ABC Industries",
-      "customerContact": "Rajesh Sharma",
-      "deadline": "2026-07-15",
-      "priority": "High",
-      "status": "Confirmed",
-      "projectType": "Custom Manufacturing",
-      "description": "Industrial mixer for food processing plant",
-      "createdAt": "2026-06-15",
-      "estimatedHours": 120,
-      "timeConstraintEnabled": false,
-      "completionPercentage": 0
-    }
-  ]
+  {
+    "id": "MO-001",
+    "name": "Industrial Mixer Machine",
+    "customer": "ABC Industries",
+    "customerContact": "Rajesh Sharma",
+    "deadline": "2026-07-15",
+    "priority": "High",
+    "status": "Confirmed",
+    "projectType": "Custom Manufacturing",
+    "description": "Industrial mixer for food processing plant",
+    "createdAt": "2026-06-15",
+    "estimatedHours": 120,
+    "timeConstraintEnabled": false,
+    "completionPercentage": 0
+  },
+  {
+    "id": "MO-002",
+    "name": "CNC Milling Station",
+    "customer": "Precision Tools Ltd.",
+    "customerContact": "Sunita Verma",
+    "deadline": "2026-08-10",
+    "priority": "High",
+    "status": "Confirmed",
+    "projectType": "Custom Manufacturing",
+    "description": "5-axis CNC milling workstation for aerospace parts",
+    "createdAt": "2026-06-18",
+    "estimatedHours": 180,
+    "timeConstraintEnabled": true,
+    "completionPercentage": 0
+  },
+  {
+    "id": "MO-003",
+    "name": "Hydraulic Press Assembly",
+    "customer": "Apex Heavy Metal",
+    "customerContact": "Vijay Kadam",
+    "deadline": "2026-09-01",
+    "priority": "Medium",
+    "status": "Confirmed",
+    "projectType": "Standard Machine Build",
+    "description": "500-ton hydraulic press system for sheet metal forming",
+    "createdAt": "2026-06-20",
+    "estimatedHours": 95,
+    "timeConstraintEnabled": false,
+    "completionPercentage": 0
+  },
+  {
+    "id": "MO-004",
+    "name": "Conveyor Sorting System",
+    "customer": "Logistics Express Pvt. Ltd.",
+    "customerContact": "Amit Patel",
+    "deadline": "2026-09-30",
+    "priority": "Low",
+    "status": "Confirmed",
+    "projectType": "Material Handling",
+    "description": "Automated sorting conveyor with barcode scanner integration",
+    "createdAt": "2026-06-21",
+    "estimatedHours": 60,
+    "timeConstraintEnabled": false,
+    "completionPercentage": 0
+  },
+  {
+    "id": "MO-005",
+    "name": "Welding Robot Integration",
+    "customer": "AutoParts Manufacturers",
+    "customerContact": "Priya Nair",
+    "deadline": "2026-10-15",
+    "priority": "Medium",
+    "status": "Confirmed",
+    "projectType": "Automation",
+    "description": "6-axis welding robot arm integration with safety enclosure",
+    "createdAt": "2026-06-21",
+    "estimatedHours": 140,
+    "timeConstraintEnabled": true,
+    "completionPercentage": 0
+  }
+]

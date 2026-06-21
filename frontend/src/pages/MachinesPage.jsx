@@ -234,11 +234,6 @@ export default function MachinesPage() {
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400 mt-1">{machines.length} machines registered in the factory</p>
         </div>
-        {canAdd && (
-          <button id="add-machine-btn" className="btn-primary" onClick={() => { setEditMachine(null); setShowModal(true); }}>
-            <Plus size={18} /> Add Machine
-          </button>
-        )}
       </div>
 
       {/* Summary bar */}

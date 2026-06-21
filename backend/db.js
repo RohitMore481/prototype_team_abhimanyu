@@ -18,6 +18,7 @@ db.exec(`
     customer TEXT,
     deadline TEXT,
     odoo_status TEXT,
+    status TEXT DEFAULT 'in_progress',
     time_constraint_enabled INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -241,12 +242,59 @@ db.exec(`
   );
 `);
 
+// Run database migrations/schema updates for users (credits, project)
+try { db.exec("ALTER TABLE users ADD COLUMN total_credits INTEGER DEFAULT 0"); } catch (e) {}
+try { db.exec("ALTER TABLE users ADD COLUMN today_credits INTEGER DEFAULT 0"); } catch (e) {}
+try { db.exec("ALTER TABLE users ADD COLUMN streak_count INTEGER DEFAULT 0"); } catch (e) {}
+try { db.exec("ALTER TABLE users ADD COLUMN last_active_at DATETIME"); } catch (e) {}
+try { db.exec("ALTER TABLE users ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL"); } catch (e) {}
+
+// Create credit_logs table
+try {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS credit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      task_id INTEGER REFERENCES tasks(id),
+      action TEXT NOT NULL,
+      credits INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+} catch (e) {}
+
+// Create settings table (used by credit_settings route)
+try {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `);
+  // Insert default credit settings if not already present
+  const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
+  insertSetting.run('credits_per_task', '10');
+  insertSetting.run('bonus_streak_threshold', '5');
+  insertSetting.run('bonus_credits', '5');
+  insertSetting.run('max_daily_credits', '100');
+} catch (e) {}
+
 // Run database migrations/schema updates for projects
 try { db.exec("ALTER TABLE projects ADD COLUMN odoo_id TEXT"); } catch (e) {}
 try { db.exec("ALTER TABLE projects ADD COLUMN customer TEXT"); } catch (e) {}
 try { db.exec("ALTER TABLE projects ADD COLUMN deadline TEXT"); } catch (e) {}
 try { db.exec("ALTER TABLE projects ADD COLUMN odoo_status TEXT"); } catch (e) {}
 try { db.exec("ALTER TABLE projects ADD COLUMN time_constraint_enabled INTEGER DEFAULT 0"); } catch (e) {}
+try { db.exec("ALTER TABLE projects ADD COLUMN status TEXT DEFAULT 'in_progress'"); } catch (e) {}
+
+// Run database migrations/schema updates for tasks (columns referenced by analytics queries)
+try { db.exec("ALTER TABLE tasks ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL"); } catch (e) {}
+try { db.exec("ALTER TABLE tasks ADD COLUMN credit_value INTEGER DEFAULT 1"); } catch (e) {}
+try { db.exec("ALTER TABLE tasks ADD COLUMN total_elapsed_seconds INTEGER DEFAULT 0"); } catch (e) {}
+try { db.exec("ALTER TABLE tasks ADD COLUMN last_action_at DATETIME"); } catch (e) {}
+
+// Run database migrations/schema updates for machines
+try { db.exec("ALTER TABLE machines ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL"); } catch (e) {}
 
 // Run database migrations/schema updates for components
 try { db.exec("ALTER TABLE components ADD COLUMN part_number TEXT"); } catch (e) {}

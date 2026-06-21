@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useLanguage } from '../context/LanguageContext';
 import toast from 'react-hot-toast';
-import { Play, Pause, CheckCircle, Clock, AlertTriangle, Cpu, X, Loader2, History, ClipboardList, User } from 'lucide-react';
+import { Play, Pause, CheckCircle, Clock, AlertTriangle, X, Loader2, History, ClipboardList, User, Coffee, Wrench } from 'lucide-react';
 import CreditWidget from '../components/CreditWidget';
 
 const PAUSE_REASONS = [
@@ -272,11 +272,6 @@ function TaskCard({ task, onAction, hideActions, isOnBreak }) {
       </div>
 
       <div className="flex items-center gap-4 text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-5">
-        {task.machine_name && (
-          <span className="flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-md">
-            <Cpu size={12} className="text-zinc-400" /> {task.machine_name}
-          </span>
-        )}
         <span className="flex items-center gap-1.5"><Clock size={12} /> {task.expected_minutes}m Expected</span>
       </div>
 
@@ -332,6 +327,38 @@ export default function WorkerDashboard() {
       setPendingRequests(res.data.filter(r => r.status === 'pending'));
     } catch { }
   }, []);
+
+  const handleRequestBreak = async () => {
+    try {
+      await api.post('/requests', { type: 'break' });
+      toast.success('Break request submitted to supervisor');
+      fetchRequests();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to request break');
+    }
+  };
+
+  const handleEndBreak = async () => {
+    try {
+      await api.post('/breaks/stop');
+      toast.success('Break ended. Resuming tasks!');
+      fetchBreakStatus();
+      fetchTasks();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to stop break');
+    }
+  };
+
+  const handleReportBreakdown = async (machineId, machineName) => {
+    if (!window.confirm(`Are you sure you want to report a breakdown for ${machineName}? This will pause all active tasks on this machine.`)) return;
+    try {
+      await api.post('/requests', { type: 'breakdown', data: { machine_id: machineId } });
+      toast.success('Breakdown report submitted to supervisor');
+      fetchRequests();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to report breakdown');
+    }
+  };
 
   const fetchBreakStatus = useCallback(async () => {
     try {
@@ -434,6 +461,83 @@ export default function WorkerDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Shift & Break Control Center */}
+      {isLive && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Shift Stats Card */}
+          <div className="card flex items-center gap-4 p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-md">
+            <div className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <ClipboardList size={24} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase text-zinc-400 tracking-wider">Shift Stats</p>
+              <div className="flex gap-4 mt-1">
+                <div>
+                  <span className="text-zinc-500 text-xs">Done: </span>
+                  <span className="font-extrabold text-sm text-emerald-600">{done.length}</span>
+                </div>
+                <div>
+                  <span className="text-zinc-500 text-xs">Active: </span>
+                  <span className="font-extrabold text-sm text-blue-600">{active.length}</span>
+                </div>
+                <div>
+                  <span className="text-zinc-500 text-xs">Queue: </span>
+                  <span className="font-extrabold text-sm text-zinc-600 dark:text-zinc-300">{pending.length}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Break Controls Card */}
+          <div className="card flex items-center gap-4 p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-md">
+            <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <Coffee size={24} />
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] font-black uppercase text-zinc-400 tracking-wider">Break System</p>
+              {breakStatus.is_on_break ? (
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-xs font-bold text-amber-600 dark:text-amber-500 animate-pulse">ON BREAK</span>
+                  <button onClick={handleEndBreak} className="btn-secondary !py-1 !px-2.5 text-xs font-black uppercase">Resume Work</button>
+                </div>
+              ) : pendingRequests.some(r => r.type === 'break') ? (
+                <p className="text-xs font-bold text-amber-500 mt-1.5 animate-pulse uppercase tracking-tight">Pending Approval...</p>
+              ) : breakStatus.already_taken_today ? (
+                <p className="text-xs font-bold text-zinc-400 mt-1.5 uppercase">Break Taken Today</p>
+              ) : (
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-xs font-bold text-zinc-500">30 min break</span>
+                  <button onClick={handleRequestBreak} className="btn-primary !py-1.5 !px-3 text-xs font-black bg-amber-500 hover:bg-amber-600 border-amber-400">Request Break</button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Issue Reporter Card */}
+          <div className="card flex items-center gap-4 p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-md">
+            <div className="p-3.5 rounded-2xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400">
+              <Wrench size={24} />
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] font-black uppercase text-zinc-400 tracking-wider">Report Issue</p>
+              {pendingRequests.some(r => r.type === 'breakdown') ? (
+                <p className="text-xs font-bold text-red-500 mt-1.5 animate-pulse uppercase tracking-tight">Issue reported — awaiting review...</p>
+              ) : (
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-xs font-bold text-zinc-500">Equipment problem?</span>
+                  <button
+                    onClick={() => handleReportBreakdown(null, 'workstation')}
+                    className="btn-danger !py-1.5 !px-3 text-xs font-black uppercase bg-red-500 hover:bg-red-600 border-red-400"
+                  >
+                    Report Issue
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? <div className="text-center py-20 animate-pulse">Loading...</div> : (
         <div className="space-y-8">

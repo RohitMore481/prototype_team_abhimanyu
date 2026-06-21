@@ -2,19 +2,73 @@
   {
     "id": "ASM-001",
     "projectId": "MO-001",
-    "name": "Main AGV Chassis",
-    "drawingNo": "DWG-AGV-001"
+    "name": "Main Mixer Chassis",
+    "drawingNo": "DWG-MX-001"
   },
   {
     "id": "ASM-002",
     "projectId": "MO-001",
-    "name": "Sensor & Navigation Box",
-    "drawingNo": "DWG-NAV-002"
+    "name": "Drive & Gearbox Unit",
+    "drawingNo": "DWG-MX-002"
   },
   {
     "id": "ASM-003",
     "projectId": "MO-001",
-    "name": "Drive Powertrain Assembly",
-    "drawingNo": "DWG-PWR-003"
+    "name": "Control Panel Assembly",
+    "drawingNo": "DWG-MX-003"
+  },
+  {
+    "id": "ASM-004",
+    "projectId": "MO-002",
+    "name": "CNC Bed & Column",
+    "drawingNo": "DWG-CNC-001"
+  },
+  {
+    "id": "ASM-005",
+    "projectId": "MO-002",
+    "name": "Spindle & Tool Changer",
+    "drawingNo": "DWG-CNC-002"
+  },
+  {
+    "id": "ASM-006",
+    "projectId": "MO-002",
+    "name": "CNC Electrical Cabinet",
+    "drawingNo": "DWG-CNC-003"
+  },
+  {
+    "id": "ASM-007",
+    "projectId": "MO-003",
+    "name": "Hydraulic Cylinder Frame",
+    "drawingNo": "DWG-HYD-001"
+  },
+  {
+    "id": "ASM-008",
+    "projectId": "MO-003",
+    "name": "Pump & Valve Manifold",
+    "drawingNo": "DWG-HYD-002"
+  },
+  {
+    "id": "ASM-009",
+    "projectId": "MO-004",
+    "name": "Belt Frame Structure",
+    "drawingNo": "DWG-CNV-001"
+  },
+  {
+    "id": "ASM-010",
+    "projectId": "MO-004",
+    "name": "Sorting Gate Mechanism",
+    "drawingNo": "DWG-CNV-002"
+  },
+  {
+    "id": "ASM-011",
+    "projectId": "MO-005",
+    "name": "Robot Arm & Base",
+    "drawingNo": "DWG-WLD-001"
+  },
+  {
+    "id": "ASM-012",
+    "projectId": "MO-005",
+    "name": "Safety Enclosure",
+    "drawingNo": "DWG-WLD-002"
   }
 ]
